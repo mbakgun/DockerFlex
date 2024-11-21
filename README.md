@@ -59,11 +59,10 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
 - Docker `>= 20.10.0`
 - Docker Compose `>= 2.0.0`
-- Git (for cloning the repository)
 
-### Quick Start with Docker Hub
+### Quick Start
 
-1. Pull and run using Docker Compose:
+1. Run with a single command:
    ```bash
    curl -O https://raw.githubusercontent.com/mbakgun/dockerflex/master/docker-compose.yml
    docker compose up -d
