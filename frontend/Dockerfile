@@ -7,16 +7,11 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Initialize npm project if package.json doesn't exist
+RUN if [ ! -f package.json ]; then npm init -y; fi
 
-# Install dependencies with clean npm cache
-RUN npm cache clean --force && \
-    npm install --legacy-peer-deps && \
-    npm install -g vite@latest @vitejs/plugin-react
-
-# Copy the rest of the application
-COPY . .
+# Install global dependencies
+RUN npm install -g vite@latest @vitejs/plugin-react
 
 EXPOSE 3000
 
@@ -24,8 +19,4 @@ ENV NODE_ENV=development
 ENV VITE_DEV_SERVER_HOST=0.0.0.0
 ENV VITE_DEV_SERVER_PORT=3000
 
-# Create volume mount points
-VOLUME ["/app/node_modules", "/app/.vite"]
-
-# Use npx to ensure we're using the local vite installation
 CMD ["sh", "-c", "npm install && npm run dev"] 
