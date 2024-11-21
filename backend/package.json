@@ -9,7 +9,7 @@
   "dependencies": {
     "express": "^4.21.1",
     "cors": "^2.8.5",
-    "dockerode": "^3.3.1",
+    "dockerode": "^4.0.2",
     "multer": "^1.4.5-lts.1",
     "archiver": "^5.3.1",
     "tar-stream": "^2.2.0",
