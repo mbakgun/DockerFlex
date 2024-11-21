@@ -1,5 +1,6 @@
 services:
   frontend:
+    image: mbakgun/dockerflex-frontend:latest
     build: 
       context: ./frontend
       dockerfile: Dockerfile
@@ -14,6 +15,7 @@ services:
       - app-network
 
   backend:
+    image: mbakgun/dockerflex-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
