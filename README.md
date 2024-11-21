@@ -33,6 +33,8 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Cross-platform compatibility
   - No installation required (web-based)
 
+![Overview](assets/overview.svg)
+
 ## 🚀 Getting Started
 
 ### Prerequisites
