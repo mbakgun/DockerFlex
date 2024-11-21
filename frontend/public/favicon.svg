@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#0D1117"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" 
+        fill="#2F81F7" font-family="Arial, sans-serif" font-weight="bold" font-size="16">
+    DF
+  </text>
+  <!-- Small docker whale silhouette -->
+  <path d="M28 22c-1 0-1.7-.6-2.1-1.3-.4.7-1.1 1.3-2.1 1.3-1.2 0-2.2-1-2.2-2.2 0-.3.1-.6.2-.9-.4.2-.8.3-1.3.3-1.2 0-2.2-1-2.2-2.2s1-2.2 2.2-2.2c.5 0 .9.1 1.3.3-.1-.3-.2-.6-.2-.9 0-1.2 1-2.2 2.2-2.2 1 0 1.7.6 2.1 1.3.4-.7 1.1-1.3 2.1-1.3 1.2 0 2.2 1 2.2 2.2 0 .3-.1.6-.2.9.4-.2.8-.3 1.3-.3 1.2 0 2.2 1 2.2 2.2s-1 2.2-2.2 2.2c-.5 0-.9-.1-1.3-.3.1.3.2.6.2.9 0 1.2-1 2.2-2.2 2.2z" 
+        fill="#2F81F7" opacity="0.2"/>
+</svg> 
