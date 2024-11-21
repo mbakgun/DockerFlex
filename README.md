@@ -33,6 +33,8 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Cross-platform compatibility
   - No installation required (web-based)
 
+ <br>
+
 ![Overview](assets/overview.svg)
 
 ## 🚀 Getting Started
@@ -71,6 +73,10 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
    - Web Interface: [http://localhost:3000](http://localhost:3000)
    - API Endpoint: [http://localhost:4000](http://localhost:4000)
 
+<br>
+
+![Quick Look](assets/first.gif)
+
 ## 🔧 Development
 
 ### Local Development Setup
@@ -96,6 +102,8 @@ docker compose logs
 docker compose logs frontend
 docker compose logs backend
 ```
+
+![Quick Look](assets/second.gif)
 
 ## 🔒 Security Considerations
 
