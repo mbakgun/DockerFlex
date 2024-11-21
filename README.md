@@ -6,11 +6,31 @@
   > The missing file manager for Docker containers
   
   *Manage Docker container files with elegance - your containers, your control*
+
+  [![Frontend Docker Pulls](https://img.shields.io/docker/pulls/mbakgun/dockerflex-frontend.svg?label=frontend%20pulls)](https://hub.docker.com/r/mbakgun/dockerflex-frontend)
+  [![Backend Docker Pulls](https://img.shields.io/docker/pulls/mbakgun/dockerflex-backend.svg?label=backend%20pulls)](https://hub.docker.com/r/mbakgun/dockerflex-backend)
+  [![GitHub License](https://img.shields.io/github/license/mbakgun/dockerflex)](https://github.com/mbakgun/dockerflex/blob/main/LICENSE)
+  [![GitHub Stars](https://img.shields.io/github/stars/mbakgun/dockerflex?style=social)](https://github.com/mbakgun/dockerflex)
+
 </div>
+
+<p align="center">
+  <a href="#-overview">Overview</a> •
+  <a href="#-key-features">Features</a> •
+  <a href="#-getting-started">Getting Started</a> •
+  <a href="#-development">Development</a> •
+  <a href="#-contributing">Contributing</a>
+</p>
 
 ## 🚀 Overview
 
 DockerFlex is a modern web-based application that simplifies Docker container file management. Whether you're a developer, DevOps engineer, or system administrator, DockerFlex provides an intuitive interface for managing container files without the complexity of traditional tools.
+
+<br>
+
+<div align="center">
+  <img src="assets/overview.svg" alt="DockerFlex Overview" width="800"/>
+</div>
 
 ## ✨ Key Features
 
@@ -33,35 +53,15 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Cross-platform compatibility
   - No installation required (web-based)
 
- <br>
-
-![Overview](assets/overview.svg)
-
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Docker and Docker Compose
+- Docker `>= 20.10.0`
+- Docker Compose `>= 2.0.0`
 - Git (for cloning the repository)
 
-### Quick Start
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd dockerflex
-   ```
-
-2. Start the application:
-   ```bash
-   docker compose up --build
-   ```
-
-3. Access DockerFlex:
-   - Web Interface: [http://localhost:3000](http://localhost:3000)
-   - API Endpoint: [http://localhost:4000](http://localhost:4000)
-
-## 🚀 Quick Start with Docker Hub
+### Quick Start with Docker Hub
 
 1. Pull and run using Docker Compose:
    ```bash
@@ -75,7 +75,9 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
 <br>
 
-![Quick Look](assets/first.gif)
+<div>
+  <img src="assets/first.gif" alt="Quick Look" width="720"/>
+</div>
 
 ## 🔧 Development
 
@@ -103,7 +105,9 @@ docker compose logs frontend
 docker compose logs backend
 ```
 
-![Quick Look](assets/second.gif)
+<div>
+  <img src="assets/second.gif" alt="Development" width="720"/>
+</div>
 
 ## 🔒 Security Considerations
 
