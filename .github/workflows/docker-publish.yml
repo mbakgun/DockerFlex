@@ -15,13 +15,10 @@ env:
   BACKEND_IMAGE_NAME: mbakgun/dockerflex-backend
 
 jobs:
-  build-and-push:
+  build-and-push-frontend:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    permissions:
-      contents: read
-      packages: write
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,7 +29,7 @@ jobs:
           username: mbakgun
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract Docker metadata for Frontend
+      - name: Extract metadata for frontend
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
@@ -40,10 +37,31 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
 
-      - name: Extract Docker metadata for Backend
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+
+  build-and-push-backend:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: mbakgun
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata for backend
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
@@ -51,25 +69,12 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
 
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE_NAME }}:latest
-          cache-to: type=inline
-
-      - name: Build and push Backend image
-        uses: docker/build-push-action@v6
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.BACKEND_IMAGE_NAME }}:latest
-          cache-to: type=inline 
+          labels: ${{ steps.meta-backend.outputs.labels }} 
