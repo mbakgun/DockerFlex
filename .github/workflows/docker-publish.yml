@@ -46,7 +46,7 @@ jobs:
             type=sha,format=long
 
       - name: Build and push Frontend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
@@ -56,7 +56,7 @@ jobs:
           cache-to: type=inline
 
       - name: Build and push Backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
