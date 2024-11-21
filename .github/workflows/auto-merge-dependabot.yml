@@ -17,18 +17,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
 
-      - name: Install dependencies and build frontend
+      # Frontend build
+      - name: Install and build frontend
+        working-directory: ./frontend
         run: |
-          cd frontend
-          npm ci
+          npm install
           npm run build
 
-      - name: Install dependencies and check backend
+      # Backend check
+      - name: Install backend dependencies
+        working-directory: ./backend
         run: |
-          cd backend
-          npm ci
+          npm install
 
       - name: Enable auto-merge
         if: success()
