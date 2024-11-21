@@ -65,7 +65,7 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
 1. Pull and run using Docker Compose:
    ```bash
-   curl -O https://raw.githubusercontent.com/mbakgun/dockerflex/main/docker-compose.yml
+   curl -O https://raw.githubusercontent.com/mbakgun/dockerflex/master/docker-compose.yml
    docker compose up -d
    ```
 
