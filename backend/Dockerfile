@@ -7,9 +7,11 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Initialize npm project if package.json doesn't exist
-RUN if [ ! -f package.json ]; then npm init -y; fi
+COPY package*.json ./
+RUN npm install
+
+COPY . .
 
 EXPOSE 4000
 
-CMD ["npm", "start"] 
+CMD ["node", "src/index.js"] 

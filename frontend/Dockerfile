@@ -7,16 +7,15 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Initialize npm project if package.json doesn't exist
-RUN if [ ! -f package.json ]; then npm init -y; fi
+COPY package*.json ./
+RUN npm install
 
-# Install global dependencies
-RUN npm install -g vite@latest @vitejs/plugin-react
+COPY . .
 
 EXPOSE 3000
 
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 ENV VITE_DEV_SERVER_HOST=0.0.0.0
 ENV VITE_DEV_SERVER_PORT=3000
 
-CMD ["sh", "-c", "npm install && npm run dev"] 
+CMD ["npm", "run", "start"] 
