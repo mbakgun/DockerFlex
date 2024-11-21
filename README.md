@@ -9,7 +9,7 @@
 
   [![Frontend Docker Pulls](https://img.shields.io/docker/pulls/mbakgun/dockerflex-frontend.svg?label=frontend%20pulls)](https://hub.docker.com/r/mbakgun/dockerflex-frontend)
   [![Backend Docker Pulls](https://img.shields.io/docker/pulls/mbakgun/dockerflex-backend.svg?label=backend%20pulls)](https://hub.docker.com/r/mbakgun/dockerflex-backend)
-  [![GitHub License](https://img.shields.io/github/license/mbakgun/dockerflex)](https://github.com/mbakgun/dockerflex/blob/main/LICENSE)
+  [![GitHub License](https://img.shields.io/github/license/mbakgun/dockerflex)](https://github.com/mbakgun/dockerflex/blob/master/LICENSE)
   [![GitHub Stars](https://img.shields.io/github/stars/mbakgun/dockerflex?style=social)](https://github.com/mbakgun/dockerflex)
 
 </div>
