@@ -109,6 +109,24 @@ This project is licensed under the MIT License.
 - Documentation: Check inline code comments
 - Contact: Reach maintainers through GitHub
 
+## 💰 Donations
+
+If you find DockerFlex helpful, consider supporting its development through cryptocurrency donations:
+
+<details>
+<summary>🪙 Cryptocurrency Wallets</summary>
+
+| Coin | Network | Wallet Address |
+|------|---------|----------------|
+| USDT | ERC20   | `0x093bA9f00a2cdaAC9d70b625644b592BD3C96AF2` |
+| DASH | DASH    | `Xh6VgfeTasdQEdErouoYbWWqZbQR9nLZen` |
+| SOL  | SOL     | `DF67UJ4QzVNVGKKWyEeA88hBCL54L1aMbadG794UrNp8` |
+
+<div align="center">
+  <sub>All donations go towards maintaining and improving DockerFlex</sub>
+</div>
+</details>
+
 ## 🎉 Acknowledgments
 
 Special thanks to all contributors who have helped make DockerFlex better!
