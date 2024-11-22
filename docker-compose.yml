@@ -23,6 +23,9 @@ services:
       - app-network
     privileged: true
     user: root
+    cap_add:
+      - SYS_ADMIN
+      - DAC_READ_SEARCH
 
 networks:
   app-network:

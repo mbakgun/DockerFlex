@@ -42,6 +42,29 @@ process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
 });
 
+// Add helper function at the top level
+const execCommand = async (container, command, options = {}) => {
+    try {
+        // First try with sudo
+        const sudoExec = await container.exec({
+            Cmd: ['sh', '-c', `command -v sudo && sudo ${command} || ${command}`],
+            AttachStdout: true,
+            AttachStderr: true,
+            ...options
+        });
+        return sudoExec;
+    } catch (error) {
+        console.warn(`Failed to execute with sudo: ${error.message}`);
+        // Fallback to direct command
+        return container.exec({
+            Cmd: ['sh', '-c', command],
+            AttachStdout: true,
+            AttachStderr: true,
+            ...options
+        });
+    }
+};
+
 // List all containers
 app.get('/api/containers', async (req, res) => {
     try {
@@ -192,140 +215,340 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
     }
 });
 
+// Add helper function for executing commands with multiple methods
+const executeWithFallback = async (container, commands, options = {}) => {
+    const methods = [
+        // Method 1: Direct command
+        async () => {
+            const exec = await container.exec({
+                Cmd: Array.isArray(commands) ? commands : ['sh', '-c', commands],
+                AttachStdout: true,
+                AttachStderr: true,
+                ...options
+            });
+            return exec.start();
+        },
+        // Method 2: Try with sudo
+        async () => {
+            const exec = await container.exec({
+                Cmd: ['sh', '-c', `command -v sudo && sudo ${Array.isArray(commands) ? commands.join(' ') : commands} || exit 1`],
+                AttachStdout: true,
+                AttachStderr: true,
+                ...options
+            });
+            return exec.start();
+        },
+        // Method 3: Try changing ownership first
+        async () => {
+            const cmd = Array.isArray(commands) ? commands.join(' ') : commands;
+            const exec = await container.exec({
+                Cmd: ['sh', '-c', `chown $(id -u):$(id -g) "$(dirname "${cmd.split(' ').pop()}")" && ${cmd}`],
+                AttachStdout: true,
+                AttachStderr: true,
+                ...options
+            });
+            return exec.start();
+        }
+    ];
+
+    let lastError = null;
+    for (const method of methods) {
+        try {
+            return await method();
+        } catch (error) {
+            lastError = error;
+            continue;
+        }
+    }
+    throw new Error(`Operation failed: ${lastError?.message || 'Permission denied'}. Location might be read-only or restricted.`);
+};
+
 // Update file content saving endpoint
 app.put('/api/containers/:id/files', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
         const {path, content} = req.body;
 
-        // Create temporary directory
+        // First check if path is writable
+        try {
+            await executeWithFallback(container, ['test', '-w', path.substring(0, path.lastIndexOf('/'))]);
+        } catch (error) {
+            return res.status(403).json({
+                error: 'Write permission denied',
+                details: 'This location is read-only or restricted'
+            });
+        }
+
+        // Create temporary directory with proper permissions
         const tempDir = `/tmp/edit-${Date.now()}`;
         const tempFile = `${tempDir}/${path.split('/').pop()}`;
         const tempTar = `${tempDir}/content.tar`;
 
-        await fsPromises.mkdir(tempDir, {recursive: true});
+        await fsPromises.mkdir(tempDir, {recursive: true, mode: 0o777});
+        await fsPromises.writeFile(tempFile, content, {mode: 0o666});
 
-        // Write content to temp file
-        await fsPromises.writeFile(tempFile, content);
-
-        // Create tar archive
+        // Create and upload tar archive
         const output = require('fs').createWriteStream(tempTar);
         const archive = archiver('tar');
-
         archive.pipe(output);
         archive.file(tempFile, {name: path.split('/').pop()});
         await archive.finalize();
-
-        // Wait for archive to finish writing
         await new Promise(resolve => output.on('close', resolve));
 
-        // Read tar file and upload to container
         const tarBuffer = await fsPromises.readFile(tempTar);
-        await container.putArchive(tarBuffer, {
-            path: path.substring(0, path.lastIndexOf('/')),
-            noOverwriteDirNonDir: true
-        });
 
-        // Get updated file info
-        const exec = await container.exec({
-            Cmd: ['ls', '-laQ', path],
-            AttachStdout: true,
-            AttachStderr: true,
-        });
+        try {
+            // Create directory and set permissions
+            const targetDir = path.substring(0, path.lastIndexOf('/'));
+            await executeWithFallback(container, `mkdir -p "${targetDir}"`);
+            await executeWithFallback(container, `chmod 777 "${targetDir}"`);
 
-        const stream = await exec.start();
-        let fileInfo = '';
-
-        await new Promise((resolve) => {
-            stream.on('data', (chunk) => {
-                fileInfo += chunk.toString();
+            // Upload file
+            await container.putArchive(tarBuffer, {
+                path: targetDir,
+                noOverwriteDirNonDir: true
             });
-            stream.on('end', resolve);
-        });
 
-        // Parse file info to get new size
-        const fileInfoParts = fileInfo.trim().split('\n')[0].match(/[^\s"']+|"([^"]*)"|'([^']*)'/g);
-        const newSize = fileInfoParts ? fileInfoParts[4] : null;
+            // Set file permissions
+            await executeWithFallback(container, `chmod 666 "${path}"`);
 
-        // Clean up
-        await fsPromises.rm(tempDir, {recursive: true, force: true});
+            // Get file info
+            const stream = await executeWithFallback(container, ['ls', '-laQ', path]);
+            let fileInfo = '';
+            await new Promise((resolve) => {
+                stream.on('data', chunk => fileInfo += chunk.toString());
+                stream.on('end', resolve);
+            });
 
-        res.json({
-            message: 'File updated successfully',
-            size: newSize
-        });
+            const fileInfoParts = fileInfo.trim().split('\n')[0].match(/[^\s"']+|"([^"]*)"|'([^']*)'/g);
+            const newSize = fileInfoParts ? fileInfoParts[4] : null;
+
+            res.json({
+                message: 'File updated successfully',
+                size: newSize
+            });
+        } finally {
+            // Clean up
+            await fsPromises.rm(tempDir, {recursive: true, force: true});
+        }
     } catch (error) {
         console.error('Error saving file:', error);
-        res.status(500).json({error: error.message});
+        res.status(403).json({
+            error: 'Failed to save file',
+            details: `This location might be read-only or restricted. ${error.message}`
+        });
     }
 });
 
-// Updated endpoint for single file upload
+// Add this helper function for robust command execution
+const executeCommandWithPrivileges = async (container, command, options = {}) => {
+    const privilegedExec = await container.exec({
+        Cmd: ['sh', '-c', `
+            # Try to elevate privileges
+            if command -v sudo >/dev/null 2>&1; then
+                sudo sh -c '${command.replace(/'/g, "'\\''")}' 2>&1
+            else
+                # Try direct execution as root
+                sh -c '${command.replace(/'/g, "'\\''")}' 2>&1
+            fi
+        `],
+        AttachStdout: true,
+        AttachStderr: true,
+        Privileged: true,
+        User: 'root',
+        ...options
+    });
+
+    const stream = await privilegedExec.start();
+    let output = '';
+    
+    await new Promise((resolve, reject) => {
+        stream.on('data', chunk => output += chunk.toString());
+        stream.on('end', () => {
+            if (output.includes('Permission denied')) {
+                reject(new Error(`Permission denied: ${output}`));
+            } else {
+                resolve(output);
+            }
+        });
+        stream.on('error', reject);
+    });
+    
+    return output;
+};
+
+// Update rename endpoint
+app.put('/api/containers/:id/files/rename', async (req, res) => {
+    try {
+        const container = docker.getContainer(req.params.id);
+        const {oldPath, newPath} = req.body;
+
+        // First ensure parent directory is writable
+        const parentDir = newPath.substring(0, newPath.lastIndexOf('/'));
+        await executeCommandWithPrivileges(container, `
+            mkdir -p "${parentDir}" &&
+            chmod 777 "${parentDir}" &&
+            chown -R root:root "${parentDir}"
+        `);
+
+        // Perform rename with elevated privileges
+        await executeCommandWithPrivileges(container, `
+            chmod -R 777 "${oldPath}" 2>/dev/null || true &&
+            mv "${oldPath}" "${newPath}" &&
+            chmod -R 777 "${newPath}" 2>/dev/null || true
+        `);
+
+        res.json({
+            message: 'File renamed successfully',
+            oldPath,
+            newPath
+        });
+    } catch (error) {
+        console.error('Error renaming:', error);
+        res.status(403).json({
+            error: 'Failed to rename',
+            details: 'Unable to rename. The location might be read-only or system protected.'
+        });
+    }
+});
+
+// Update folder creation endpoint
+app.post('/api/containers/:id/create-folder', async (req, res) => {
+    try {
+        const container = docker.getContainer(req.params.id);
+        const {path} = req.body;
+
+        if (!path) {
+            return res.status(400).json({
+                error: 'Path is required',
+                details: 'Please provide a valid path for the folder'
+            });
+        }
+
+        // Try to create directory with elevated privileges
+        await executeCommandWithPrivileges(container, `
+            parent_dir="$(dirname "${path}")" &&
+            mkdir -p "$parent_dir" &&
+            chmod 777 "$parent_dir" &&
+            mkdir -p "${path}" &&
+            chmod 777 "${path}" &&
+            chown -R root:root "${path}"
+        `);
+
+        // Verify directory was created
+        const verifyOutput = await executeCommandWithPrivileges(container, `test -d "${path}" && echo "SUCCESS"`);
+        
+        if (!verifyOutput.includes('SUCCESS')) {
+            throw new Error('Directory creation could not be verified');
+        }
+
+        res.json({
+            message: 'Folder created successfully',
+            path: path
+        });
+    } catch (error) {
+        console.error('Error creating folder:', error);
+        res.status(403).json({
+            error: 'Failed to create folder',
+            details: 'Unable to create folder. The location might be read-only or system protected.'
+        });
+    }
+});
+
+// Update delete endpoint to use the new helper
+app.delete('/api/containers/:id/files', async (req, res) => {
+    try {
+        const {id} = req.params;
+        const {path, isDirectory} = req.body;
+        const container = docker.getContainer(id);
+
+        // Try to delete with elevated privileges
+        await executeCommandWithPrivileges(container, `
+            parent_dir="$(dirname "${path}")" &&
+            chmod -R 777 "$parent_dir" 2>/dev/null || true &&
+            chmod -R 777 "${path}" 2>/dev/null || true &&
+            rm ${isDirectory ? '-rf' : '-f'} "${path}" &&
+            echo "DELETED"
+        `);
+
+        // Verify deletion
+        try {
+            await executeCommandWithPrivileges(container, `test ! -e "${path}"`);
+            res.json({
+                message: `${isDirectory ? 'Directory' : 'File'} deleted successfully`,
+                path: path
+            });
+        } catch (error) {
+            throw new Error('Delete operation could not be verified');
+        }
+    } catch (error) {
+        console.error('Error deleting:', error);
+        res.status(403).json({
+            error: 'Permission denied',
+            details: 'Unable to delete. The location might be read-only or system protected.'
+        });
+    }
+});
+
+// Update file upload endpoint
 app.post('/api/containers/:id/files', upload.single('file'), async (req, res) => {
     try {
         const {id} = req.params;
         const {path: uploadPath} = req.body;
+        const container = docker.getContainer(id);
 
         if (!req.file) {
             return res.status(400).json({error: 'No file uploaded'});
         }
 
+        // Check write permissions
+        try {
+            await executeWithFallback(container, ['test', '-w', uploadPath || '/']);
+        } catch (error) {
+            return res.status(403).json({
+                error: 'Upload permission denied',
+                details: 'This location is read-only or restricted'
+            });
+        }
+
         const {path: filePath, originalname} = req.file;
-        const container = docker.getContainer(id);
+        const targetPath = `${uploadPath || '/'}${uploadPath?.endsWith('/') ? '' : '/'}${originalname}`;
 
-        // Read file content
-        const fileContent = await fsPromises.readFile(filePath);
+        try {
+            // Create directory with proper permissions
+            await executeWithFallback(container, `mkdir -p "${uploadPath}"`);
+            await executeWithFallback(container, `chmod 777 "${uploadPath}"`);
 
-        // Copy file to container (using exec)
-        const targetPath = `${uploadPath || '/'}${uploadPath.endsWith('/') ? '' : '/'}${originalname}`;
+            // Upload file
+            const fileContent = await fsPromises.readFile(filePath);
+            const stream = await executeWithFallback(container, `cat > "${targetPath}"`, {
+                AttachStdin: true
+            });
 
-        // First copy file to container
-        const execWrite = await container.exec({
-            Cmd: ['sh', '-c', `cat > "${targetPath}"`],
-            AttachStdin: true,
-            AttachStdout: true,
-            AttachStderr: true,
-        });
+            await new Promise((resolve, reject) => {
+                stream.on('error', reject);
+                stream.write(fileContent);
+                stream.end();
+                stream.on('end', resolve);
+            });
 
-        const stream = await execWrite.start({
-            hijack: true,
-            stdin: true
-        });
+            // Set file permissions
+            await executeWithFallback(container, `chmod 666 "${targetPath}"`);
 
-        // Write file content and end stream properly
-        await new Promise((resolve, reject) => {
-            stream.on('error', reject);
-
-            // Write the file content
-            stream.write(fileContent);
-
-            // End the stream
-            stream.end();
-
-            // Wait for the stream to finish
-            stream.on('end', resolve);
-        });
-
-        // Set permissions
-        const execChmod = await container.exec({
-            Cmd: ['chmod', '777', targetPath],
-            AttachStdout: true,
-            AttachStderr: true,
-        });
-
-        await execChmod.start();
-
-        // Clean up temp file
-        await fsPromises.unlink(filePath);
-
-        res.json({
-            message: 'File uploaded successfully',
-            filename: originalname
-        });
+            res.json({
+                message: 'File uploaded successfully',
+                filename: originalname
+            });
+        } finally {
+            // Clean up temp file
+            await fsPromises.unlink(filePath).catch(console.error);
+        }
     } catch (error) {
         console.error('Upload error:', error);
-        console.error('Error details:', error.stack);
-        res.status(500).json({error: error.message});
+        res.status(403).json({
+            error: 'Failed to upload file',
+            details: `This location might be read-only or restricted. ${error.message}`
+        });
     }
 });
 
@@ -465,39 +688,6 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
         });
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({error: error.message});
-    }
-});
-
-// Delete file - Fix error handling
-app.delete('/api/containers/:id/files', async (req, res) => {
-    try {
-        const {id} = req.params;
-        const {path, isDirectory} = req.body;
-        const container = docker.getContainer(id);
-
-        const exec = await container.exec({
-            // Use rm -rf for directories, rm -f for files
-            Cmd: isDirectory ? ['rm', '-rf', path] : ['rm', '-f', path],
-            AttachStdout: true,
-            AttachStderr: true,
-        });
-
-        const stream = await exec.start();
-        let error = '';
-
-        stream.on('data', (chunk) => {
-            error += chunk.toString();
-        });
-
-        stream.on('end', () => {
-            if (error) {
-                res.status(500).json({error});
-            } else {
-                res.json({message: 'File deleted successfully'});
-            }
-        });
-    } catch (error) {
         res.status(500).json({error: error.message});
     }
 });
@@ -847,76 +1037,6 @@ process.on('SIGTERM', () => {
         console.log('Server closed');
         process.exit(0);
     });
-});
-
-// Update the folder creation endpoint to use a different route
-app.post('/api/containers/:id/create-folder', async (req, res) => {
-    try {
-        const container = docker.getContainer(req.params.id);
-        const {path} = req.body;
-
-        // Validate input
-        if (!path) {
-            return res.status(400).json({
-                error: 'Path is required',
-                details: 'Please provide a valid path for the folder'
-            });
-        }
-
-        // Verify container exists and is running
-        try {
-            const containerInfo = await container.inspect();
-            if (containerInfo.State.Status !== 'running') {
-                return res.status(503).json({
-                    error: 'Container is not running',
-                    details: 'Container must be running to create folders'
-                });
-            }
-        } catch (error) {
-            if (error.statusCode === 404) {
-                return res.status(404).json({
-                    error: 'Container not found',
-                    details: 'The specified container no longer exists'
-                });
-            }
-            throw error;
-        }
-
-        // Create directory using mkdir
-        const exec = await container.exec({
-            Cmd: ['mkdir', '-p', path],
-            AttachStdout: true,
-            AttachStderr: true
-        });
-
-        const stream = await exec.start();
-
-        await new Promise((resolve, reject) => {
-            let error = '';
-            stream.on('data', chunk => {
-                error += chunk.toString();
-            });
-            stream.on('end', () => {
-                if (error) {
-                    reject(new Error(error));
-                } else {
-                    resolve();
-                }
-            });
-            stream.on('error', reject);
-        });
-
-        res.json({
-            message: 'Folder created successfully',
-            path: path
-        });
-    } catch (error) {
-        console.error('Error creating folder:', error);
-        res.status(500).json({
-            error: 'Failed to create folder',
-            details: error.message
-        });
-    }
 });
 
 // Add this new endpoint
