@@ -172,3 +172,36 @@ Special thanks to all contributors who have helped make DockerFlex better!
 <div align="center">
   <sub>Built with ❤️ for the Docker community</sub>
 </div>
+
+## 🚀 Installation
+
+1. Run with a single command:
+   ```bash
+   curl -O https://raw.githubusercontent.com/mbakgun/dockerflex/master/docker-compose.yml
+   docker compose up -d
+   ```
+
+2. Access DockerFlex:
+   - Web Interface: [http://localhost:3200](http://localhost:3200)
+   - API Endpoint: [http://localhost:4200](http://localhost:4200)
+
+3. Environment Variables (Optional):
+   ```yaml
+   environment:
+     - VITE_HOSTNAME=your-custom-hostname    # Custom hostname display (default: Docker Desktop)
+     - VITE_API_URL=http://your-api-ip:4200  # Custom API URL (default: http://localhost:4200)
+   ```
+
+   Example docker-compose.yml with custom settings:
+   ```yaml
+  ...
+       image: mbakgun/dockerflex-frontend:latest
+       environment:
+         - VITE_HOSTNAME=Production Server
+         - VITE_API_URL=http://192.168.0.60:4200
+       ports:
+         - "3200:3200"
+...
+   ```
+
+<br>

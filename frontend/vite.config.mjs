@@ -12,7 +12,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL,
+        target: process.env.VITE_API_URL || 'http://localhost:4200',
         changeOrigin: true,
         secure: false
       }
@@ -25,7 +25,8 @@ export default defineConfig({
     }
   },
   define: {
-    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL)
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:4200'),
+    'import.meta.env.VITE_HOSTNAME': JSON.stringify(process.env.VITE_HOSTNAME || 'Docker Desktop')
   },
   resolve: {
     alias: {

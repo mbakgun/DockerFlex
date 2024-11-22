@@ -675,7 +675,8 @@ const cleanFileName = (fileName) => {
 };
 
 // Use environment variables for API URLs
-const INTERNAL_API_URL = process.env.VITE_API_URL;
+const INTERNAL_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4200';
+const HOSTNAME = import.meta.env.VITE_HOSTNAME || 'Docker Desktop';
 
 function App() {
     const classes = useStyles();
@@ -1534,9 +1535,9 @@ function App() {
     useEffect(() => {
         const getHostInfo = async () => {
             try {
-                // First try environment variable
-                if (process.env.VITE_HOSTNAME) {
-                    setHostInfo(process.env.VITE_HOSTNAME);
+                // First check environment variable
+                if (import.meta.env.VITE_HOSTNAME) {
+                    setHostInfo(import.meta.env.VITE_HOSTNAME);
                     return;
                 }
 
