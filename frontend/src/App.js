@@ -890,17 +890,17 @@ function App() {
                     {
                         params: {path: filePath},
                         headers: {
-                            'Accept': 'text/plain, application/json, */*'
-                        }
+                            'Accept': 'text/plain'
+                        },
+                        transformResponse: [(data) => {
+                            // Ensure we return the raw string data
+                            return data;
+                        }]
                     }
                 );
 
                 if (response.status === 200) {
-                    const content = typeof response.data === 'string'
-                        ? response.data
-                        : await response.data.text();
-
-                    setFileContent(content);
+                    setFileContent(response.data);
                     setSelectedFile(file);
                     setOpenEditor(true);
                     window.history.pushState({type: 'editor', path: currentPath}, '');

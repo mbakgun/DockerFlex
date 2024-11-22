@@ -192,12 +192,29 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
         });
 
         const stream = await exec.start();
+        let fileContent = '';
+        let errorContent = '';
 
-        // Set headers for download
-        res.setHeader('Content-Disposition', `attachment; filename="${decodedPath.split('/').pop()}"`);
+        // Collect all data chunks
+        stream.on('data', (chunk) => {
+            const buffer = Buffer.from(chunk);
+            // Check if this is stderr data (usually has a header byte of 2)
+            if (buffer[0] === 2) {
+                errorContent += buffer.slice(8).toString();
+            } else {
+                // For stdout (header byte of 1) or no header
+                fileContent += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
+            }
+        });
 
-        // Pipe the stream directly to response
-        stream.pipe(res);
+        // Handle end of stream
+        stream.on('end', () => {
+            if (errorContent) {
+                res.status(500).json({ error: errorContent });
+            } else {
+                res.send(fileContent);
+            }
+        });
 
         // Handle stream errors
         stream.on('error', (error) => {
@@ -208,10 +225,8 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error downloading file:', error);
-        if (!res.headersSent) {
-            res.status(500).json({error: error.message});
-        }
+        console.error('Error reading file:', error);
+        res.status(500).json({error: error.message});
     }
 });
 
