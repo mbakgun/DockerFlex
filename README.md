@@ -52,6 +52,10 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Fast and responsive
   - Cross-platform compatibility
   - No installation required (web-based)
+ 
+<div>
+  <img src="assets/first.gif" alt="Development" width="720"/>
+</div>
 
 ## 🚀 Installation
 
@@ -91,7 +95,6 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
          - VITE_API_URL=/api
          - VITE_BACKEND_URL=http://backend:4200
        networks:
-
          - app-network
    
      backend:
@@ -209,7 +212,7 @@ This project is licensed under the MIT License.
 
 - GitHub Issues: Report bugs and feature requests
 - Documentation: Check inline code comments
-- Contact: Reach maintainers through GitHub
+- Contact: Reach me through GitHub
 
 ## 💰 Donations
 
