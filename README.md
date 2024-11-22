@@ -69,8 +69,8 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
    ```
 
 2. Access DockerFlex:
-   - Web Interface: [http://localhost:3000](http://localhost:3000)
-   - API Endpoint: [http://localhost:4000](http://localhost:4000)
+   - Web Interface: [http://localhost:3200](http://localhost:3200)
+   - API Endpoint: [http://localhost:4200](http://localhost:4200)
 
 <br>
 

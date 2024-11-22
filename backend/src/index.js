@@ -16,8 +16,8 @@ const upload = multer({dest: 'uploads/'});
 
 app.use(cors({
     origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-        process.env.INTERNAL_FRONTEND_URL || 'http://frontend:3000'
+        process.env.FRONTEND_URL,
+        process.env.INTERNAL_FRONTEND_URL
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -824,7 +824,7 @@ app.get('/api/hostname', (req, res) => {
 app.use(errorHandler);
 
 // Update server startup
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4200;
 const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

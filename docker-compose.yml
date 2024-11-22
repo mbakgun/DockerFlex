@@ -6,10 +6,10 @@ services:
     hostname: dockerflex-frontend
     container_name: dockerflex-frontend
     ports:
-      - "3000:3000"
+      - "3200:3200"
     environment:
-      - VITE_API_URL=http://localhost:4000
-      - VITE_INTERNAL_API_URL=http://backend:4000
+      - VITE_API_URL=http://localhost:4200
+      - VITE_INTERNAL_API_URL=http://backend:4200
     networks:
       - app-network
 
@@ -18,10 +18,10 @@ services:
     hostname: dockerflex-backend
     container_name: dockerflex-backend
     ports:
-      - "4000:4000"
+      - "4200:4200"
     environment:
-      - FRONTEND_URL=http://localhost:3000
-      - INTERNAL_FRONTEND_URL=http://frontend:3000
+      - FRONTEND_URL=http://localhost:3200
+      - INTERNAL_FRONTEND_URL=http://frontend:3200
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
