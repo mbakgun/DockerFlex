@@ -14,7 +14,8 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:4200',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     },
     cors: {
@@ -25,7 +26,8 @@ export default defineConfig({
     }
   },
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:4200'),
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || '/api'),
+    'import.meta.env.VITE_BACKEND_URL': JSON.stringify(process.env.VITE_BACKEND_URL || 'http://localhost:4200'),
     'import.meta.env.VITE_HOSTNAME': JSON.stringify(process.env.VITE_HOSTNAME || 'Docker Desktop')
   },
   resolve: {

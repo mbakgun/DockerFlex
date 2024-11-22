@@ -74,7 +74,8 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
    | Variable | Description | Default |
    |----------|-------------|---------|
    | VITE_HOSTNAME | Custom hostname display | Docker Desktop |
-   | VITE_API_URL | Custom API endpoint URL | http://localhost:4200 |
+   | VITE_API_URL | Backend API endpoint path | /api |
+   | VITE_BACKEND_URL | Internal backend URL | http://backend:4200 |
 
 2. Example Configurations:
 
@@ -87,14 +88,15 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
        ports:
          - "3200:3200"
        environment:
-         - VITE_API_URL=http://localhost:4200
+         - VITE_API_URL=/api
+         - VITE_BACKEND_URL=http://backend:4200
        networks:
          - app-network
 
      backend:
        image: mbakgun/dockerflex-backend:latest
-       ports:
-         - "4200:4200"
+       expose:
+         - "4200"
        volumes:
          - /var/run/docker.sock:/var/run/docker.sock
        networks:
@@ -112,7 +114,8 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
        image: mbakgun/dockerflex-frontend:latest
        environment:
          - VITE_HOSTNAME=Production Server    # Custom hostname
-         - VITE_API_URL=http://192.168.1.100:4200  # Internal network API
+         - VITE_API_URL=/api                  # API path prefix
+         - VITE_BACKEND_URL=http://backend:4200  # Internal backend URL
        ports:
          - "3200:3200"
    ```
@@ -122,22 +125,25 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 1. Local Development:
    - Default setup works out of the box
    - Frontend and backend communicate via Docker network
+   - Only port 3200 needs to be exposed externally
 
 2. Internal Network:
-   - Set VITE_API_URL to your backend's internal IP
-   - Example: `VITE_API_URL=http://192.168.1.100:4200`
+   - No additional configuration needed
+   - Backend is automatically accessible via Docker network
+   - Frontend proxies all API requests to backend
 
 3. Remote Access:
-   - Ensure ports 3200 and 4200 are accessible
-   - Configure VITE_API_URL to point to your backend server
-   - Use appropriate hostname in VITE_HOSTNAME
+   - Only port 3200 needs to be exposed
+   - Backend port (4200) remains internal
+   - All API requests are automatically proxied through frontend
 
 ### Troubleshooting
 
 Common issues and solutions:
 - If hostname isn't updating, ensure VITE_HOSTNAME is properly set in your environment
-- For API connection issues, verify VITE_API_URL is correctly configured
+- For API connection issues, verify the containers are on the same network
 - Container access requires proper Docker socket mounting
+- Make sure port 3200 is accessible from your network
 
 ## 🔧 Development
 
