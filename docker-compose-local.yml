@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   frontend:
-    image: mbakgun/dockerflex-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     hostname: dockerflex-frontend
     container_name: dockerflex-frontend
     ports:
@@ -11,15 +13,22 @@ services:
       - VITE_API_URL=http://localhost:4200
     networks:
       - app-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
   backend:
-    image: mbakgun/dockerflex-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     hostname: dockerflex-backend
     container_name: dockerflex-backend
     ports:
       - "4200:4200"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./backend:/app
+      - /app/node_modules
     networks:
       - app-network
 

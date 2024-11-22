@@ -12,14 +12,19 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: process.env.VITE_INTERNAL_API_URL || process.env.VITE_API_URL,
+        target: process.env.VITE_API_URL,
         changeOrigin: true,
         secure: false
       }
+    },
+    cors: {
+      origin: '*',
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+      credentials: true
     }
   },
   define: {
-    'process.env.VITE_INTERNAL_API_URL': JSON.stringify(process.env.VITE_INTERNAL_API_URL),
     'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL)
   },
   resolve: {

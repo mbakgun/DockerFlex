@@ -675,7 +675,7 @@ const cleanFileName = (fileName) => {
 };
 
 // Use environment variables for API URLs
-const INTERNAL_API_URL = process.env.VITE_INTERNAL_API_URL || process.env.VITE_API_URL;
+const INTERNAL_API_URL = process.env.VITE_API_URL;
 
 function App() {
     const classes = useStyles();
