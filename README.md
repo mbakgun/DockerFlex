@@ -80,30 +80,30 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
    Basic setup (docker-compose.yml):
    ```yaml
-   version: '3.8'
    services:
      frontend:
        image: mbakgun/dockerflex-frontend:latest
+       hostname: dockerflex-frontend
+       container_name: dockerflex-frontend
        ports:
          - "3200:3200"
        environment:
          - VITE_API_URL=/api
          - VITE_BACKEND_URL=http://backend:4200
        networks:
-         - app-network
 
+         - app-network
+   
      backend:
        image: mbakgun/dockerflex-backend:latest
+       hostname: dockerflex-backend
+       container_name: dockerflex-backend
        expose:
          - "4200"
+
        volumes:
          - /var/run/docker.sock:/var/run/docker.sock
        networks:
-         - app-network
-
-   networks:
-     app-network:
-       driver: bridge
    ```
 
    Custom settings (example):
