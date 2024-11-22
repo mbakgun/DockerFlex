@@ -53,12 +53,7 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Cross-platform compatibility
   - No installation required (web-based)
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Docker `>= 20.10.0`
-- Docker Compose `>= 2.0.0`
+## 🚀 Installation
 
 ### Quick Start
 
@@ -72,11 +67,77 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
    - Web Interface: [http://localhost:3200](http://localhost:3200)
    - API Endpoint: [http://localhost:4200](http://localhost:4200)
 
-<br>
+### Configuration Options
 
-<div>
-  <img src="assets/first.gif" alt="Quick Look" width="720"/>
-</div>
+1. Environment Variables:
+
+   | Variable | Description | Default |
+   |----------|-------------|---------|
+   | VITE_HOSTNAME | Custom hostname display | Docker Desktop |
+   | VITE_API_URL | Custom API endpoint URL | http://localhost:4200 |
+
+2. Example Configurations:
+
+   Basic setup (docker-compose.yml):
+   ```yaml
+   version: '3.8'
+   services:
+     frontend:
+       image: mbakgun/dockerflex-frontend:latest
+       ports:
+         - "3200:3200"
+       environment:
+         - VITE_API_URL=http://localhost:4200
+       networks:
+         - app-network
+
+     backend:
+       image: mbakgun/dockerflex-backend:latest
+       ports:
+         - "4200:4200"
+       volumes:
+         - /var/run/docker.sock:/var/run/docker.sock
+       networks:
+         - app-network
+
+   networks:
+     app-network:
+       driver: bridge
+   ```
+
+   Custom settings (example):
+   ```yaml
+   services:
+     frontend:
+       image: mbakgun/dockerflex-frontend:latest
+       environment:
+         - VITE_HOSTNAME=Production Server    # Custom hostname
+         - VITE_API_URL=http://192.168.1.100:4200  # Internal network API
+       ports:
+         - "3200:3200"
+   ```
+
+### Network Configuration
+
+1. Local Development:
+   - Default setup works out of the box
+   - Frontend and backend communicate via Docker network
+
+2. Internal Network:
+   - Set VITE_API_URL to your backend's internal IP
+   - Example: `VITE_API_URL=http://192.168.1.100:4200`
+
+3. Remote Access:
+   - Ensure ports 3200 and 4200 are accessible
+   - Configure VITE_API_URL to point to your backend server
+   - Use appropriate hostname in VITE_HOSTNAME
+
+### Troubleshooting
+
+Common issues and solutions:
+- If hostname isn't updating, ensure VITE_HOSTNAME is properly set in your environment
+- For API connection issues, verify VITE_API_URL is correctly configured
+- Container access requires proper Docker socket mounting
 
 ## 🔧 Development
 
@@ -172,36 +233,5 @@ Special thanks to all contributors who have helped make DockerFlex better!
 <div align="center">
   <sub>Built with ❤️ for the Docker community</sub>
 </div>
-
-## 🚀 Installation
-
-1. Run with a single command:
-   ```bash
-   curl -O https://raw.githubusercontent.com/mbakgun/dockerflex/master/docker-compose.yml
-   docker compose up -d
-   ```
-
-2. Access DockerFlex:
-   - Web Interface: [http://localhost:3200](http://localhost:3200)
-   - API Endpoint: [http://localhost:4200](http://localhost:4200)
-
-3. Environment Variables (Optional):
-   ```yaml
-   environment:
-     - VITE_HOSTNAME=your-custom-hostname    # Custom hostname display (default: Docker Desktop)
-     - VITE_API_URL=http://your-api-ip:4200  # Custom API URL (default: http://localhost:4200)
-   ```
-
-   Example docker-compose.yml with custom settings:
-   ```yaml
-  ...
-       image: mbakgun/dockerflex-frontend:latest
-       environment:
-         - VITE_HOSTNAME=Production Server
-         - VITE_API_URL=http://192.168.0.60:4200
-       ports:
-         - "3200:3200"
-...
-   ```
 
 <br>
