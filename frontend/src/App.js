@@ -674,6 +674,9 @@ const cleanFileName = (fileName) => {
         .trim();
 };
 
+// Update the API calls to use environment variable
+const API_URL = import.meta.env.VITE_API_URL;
+
 function App() {
     const classes = useStyles();
     const [containers, setContainers] = useState([]);
@@ -802,7 +805,7 @@ function App() {
 
     const fetchContainers = async () => {
         try {
-            const response = await axios.get('http://localhost:4000/api/containers');
+            const response = await axios.get(`${API_URL}/api/containers`);
             setContainers(sortContainers(response.data));
         } catch (error) {
             showErrorMessage('Error fetching containers: ' + error.message);
@@ -814,7 +817,7 @@ function App() {
             // If container is not running, start it first
             if (container.State !== 'running') {
                 try {
-                    await axios.post(`http://localhost:4000/api/containers/${container.Id}/start`);
+                    await axios.post(`${API_URL}/api/containers/${container.Id}/start`);
                     // Wait for container to start
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     // Refresh container list
@@ -827,7 +830,7 @@ function App() {
 
             // Now access files
             const response = await axios.get(
-                `http://localhost:4000/api/containers/${container.Id}/files`,
+                `${API_URL}/api/containers/${container.Id}/files`,
                 {params: {path: '/'}}
             );
 
@@ -847,7 +850,7 @@ function App() {
 
     const fetchFiles = async (containerId, path) => {
         try {
-            const response = await axios.get(`http://localhost:4000/api/containers/${containerId}/files`, {
+            const response = await axios.get(`${API_URL}/api/containers/${containerId}/files`, {
                 params: {path}
             });
             const filteredFiles = response.data.filter(file => {
@@ -886,7 +889,7 @@ function App() {
             try {
                 const filePath = `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${file.name}`;
                 const response = await axios.get(
-                    `http://localhost:4000/api/containers/${selectedContainer.Id}/files/content`,
+                    `${API_URL}/api/containers/${selectedContainer.Id}/files/content`,
                     {
                         params: {path: filePath},
                         headers: {
@@ -955,7 +958,7 @@ function App() {
         try {
             // Always use the zip endpoint for both files and directories
             const response = await axios.get(
-                `http://localhost:4000/api/containers/${selectedContainer.Id}/download`,
+                `${API_URL}/api/containers/${selectedContainer.Id}/download`,
                 {
                     params: {
                         path: `${currentPath}/${selectedFile.name}`,
@@ -982,7 +985,7 @@ function App() {
     const handleSaveFile = async () => {
         try {
             const response = await axios.put(
-                `http://localhost:4000/api/containers/${selectedContainer.Id}/files`,
+                `${API_URL}/api/containers/${selectedContainer.Id}/files`,
                 {
                     path: `${currentPath}/${selectedFile.name}`,
                     content: fileContent
@@ -1022,7 +1025,7 @@ function App() {
         try {
             const fullPath = `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${selectedFile.name}`;
             await axios.delete(
-                `http://localhost:4000/api/containers/${selectedContainer.Id}/files`,
+                `${API_URL}/api/containers/${selectedContainer.Id}/files`,
                 {
                     data: {
                         path: fullPath,
@@ -1055,7 +1058,7 @@ function App() {
             const newPath = `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${newFileName}`;
 
             await axios.put(
-                `http://localhost:4000/api/containers/${selectedContainer.Id}/files/rename`,
+                `${API_URL}/api/containers/${selectedContainer.Id}/files/rename`,
                 {oldPath, newPath}
             );
 
@@ -1300,7 +1303,7 @@ function App() {
 
         try {
             const response = await axios.post(
-                `http://localhost:4000/api/containers/${selectedContainer.Id}/upload`,
+                `${API_URL}/api/containers/${selectedContainer.Id}/upload`,
                 formData,
                 {
                     headers: {'Content-Type': 'multipart/form-data'},
@@ -1526,7 +1529,7 @@ function App() {
         const getHostInfo = async () => {
             try {
                 // Get hostname using OS module
-                const response = await axios.get('http://localhost:4000/api/hostname');
+                const response = await axios.get(`${API_URL}/api/hostname`);
                 setHostInfo(response.data.hostname);
             } catch (error) {
                 console.error('Error getting host info:', error);
@@ -1564,7 +1567,7 @@ function App() {
 
             if (newItemType === 'folder') {
                 // Use the new endpoint for folder creation
-                await axios.post(`http://localhost:4000/api/containers/${selectedContainer.Id}/create-folder`, {
+                await axios.post(`${API_URL}/api/containers/${selectedContainer.Id}/create-folder`, {
                     path: newPath
                 }, {
                     headers: {
@@ -1572,7 +1575,7 @@ function App() {
                     }
                 });
             } else {
-                await axios.put(`http://localhost:4000/api/containers/${selectedContainer.Id}/files`, {
+                await axios.put(`${API_URL}/api/containers/${selectedContainer.Id}/files`, {
                     path: newPath,
                     content: newFileContent
                 });

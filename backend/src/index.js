@@ -14,7 +14,12 @@ const app = express();
 const docker = new Docker({socketPath: '/var/run/docker.sock'});
 const upload = multer({dest: 'uploads/'});
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
 app.use(express.json());
 
 // Add error handling middleware

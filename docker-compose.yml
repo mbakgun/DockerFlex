@@ -5,6 +5,8 @@ services:
     image: mbakgun/dockerflex-frontend:latest
     ports:
       - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:4000
     networks:
       - app-network
 
@@ -12,6 +14,8 @@ services:
     image: mbakgun/dockerflex-backend:latest
     ports:
       - "4000:4000"
+    environment:
+      - FRONTEND_URL=http://frontend:3000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
