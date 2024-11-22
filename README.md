@@ -65,7 +65,6 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
 2. Access DockerFlex:
    - Web Interface: [http://localhost:3200](http://localhost:3200)
-   - API Endpoint: [http://localhost:4200](http://localhost:4200)
 
 ### Configuration Options
 
@@ -129,12 +128,12 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
 2. Internal Network:
    - No additional configuration needed
-   - Backend is automatically accessible via Docker network
+   - Backend is only accessible via Docker network
    - Frontend proxies all API requests to backend
 
 3. Remote Access:
    - Only port 3200 needs to be exposed
-   - Backend port (4200) remains internal
+   - Backend port (4200) is internal only
    - All API requests are automatically proxied through frontend
 
 ### Troubleshooting
