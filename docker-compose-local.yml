@@ -10,7 +10,8 @@ services:
     ports:
       - "3200:3200"
     environment:
-      - VITE_API_URL=http://localhost:4200
+      - VITE_API_URL=/api
+      - VITE_BACKEND_URL=http://backend:4200
     networks:
       - app-network
     volumes:
@@ -23,8 +24,8 @@ services:
       dockerfile: Dockerfile
     hostname: dockerflex-backend
     container_name: dockerflex-backend
-    ports:
-      - "4200:4200"
+    expose:
+      - "4200"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend:/app
