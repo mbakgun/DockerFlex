@@ -1086,14 +1086,24 @@ function App() {
 
     const sortContainers = (containers) => {
         return [...containers].sort((a, b) => {
-            const aIsHelloWorld = a.Names[0].includes('hello-world');
-            const bIsHelloWorld = b.Names[0].includes('hello-world');
-            if (aIsHelloWorld && !bIsHelloWorld) return -1;
-            if (!aIsHelloWorld && bIsHelloWorld) return 1;
+            // Helper function to check if container is red (artifact)
+            const isRed = (container) => {
+                const name = container.Names[0].toLowerCase();
+                return name.includes('dockerflex-') || name.includes('buildx_buildkit');
+            };
 
+            const aIsRed = isRed(a);
+            const bIsRed = isRed(b);
+
+            // If one is red and other isn't, red goes last
+            if (aIsRed && !bIsRed) return 1;
+            if (!aIsRed && bIsRed) return -1;
+
+            // If both are same color (red or green), sort by running state
             if (a.State === 'running' && b.State !== 'running') return -1;
             if (a.State !== 'running' && b.State === 'running') return 1;
 
+            // If same state, sort alphabetically
             return a.Names[0].localeCompare(b.Names[0]);
         });
     };
@@ -1520,18 +1530,25 @@ function App() {
         }
     }, [selectedContainer]);
 
-    // Add useEffect for fetching host info
+    // Update the useEffect for fetching host info
     useEffect(() => {
         const getHostInfo = async () => {
             try {
-                // Get hostname using OS module
+                // First try environment variable
+                if (process.env.VITE_HOSTNAME) {
+                    setHostInfo(process.env.VITE_HOSTNAME);
+                    return;
+                }
+
+                // Fallback to API call if no environment variable
                 const response = await axios.get(`${INTERNAL_API_URL}/api/hostname`);
                 setHostInfo(response.data.hostname);
             } catch (error) {
-                console.error('Error getting host info:', error);
-                setHostInfo('Unknown Host');
+                console.error('Error fetching host info:', error);
+                setHostInfo('Docker Desktop');
             }
         };
+
         getHostInfo();
     }, []);
 
