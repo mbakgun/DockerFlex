@@ -15,7 +15,10 @@ const docker = new Docker({socketPath: '/var/run/docker.sock'});
 const upload = multer({dest: 'uploads/'});
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        process.env.INTERNAL_FRONTEND_URL || 'http://frontend:3000'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true

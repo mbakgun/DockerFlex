@@ -3,19 +3,25 @@ version: '3.8'
 services:
   frontend:
     image: mbakgun/dockerflex-frontend:latest
+    hostname: dockerflex-frontend
+    container_name: dockerflex-frontend
     ports:
       - "3000:3000"
     environment:
-      - VITE_API_URL=http://backend:4000
+      - VITE_API_URL=http://localhost:4000
+      - VITE_INTERNAL_API_URL=http://backend:4000
     networks:
       - app-network
 
   backend:
     image: mbakgun/dockerflex-backend:latest
+    hostname: dockerflex-backend
+    container_name: dockerflex-backend
     ports:
       - "4000:4000"
     environment:
-      - FRONTEND_URL=http://frontend:3000
+      - FRONTEND_URL=http://localhost:3000
+      - INTERNAL_FRONTEND_URL=http://frontend:3000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
