@@ -7,6 +7,9 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
+# Add user as root
+USER root
+
 COPY package*.json ./
 RUN npm install
 
