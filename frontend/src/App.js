@@ -1011,7 +1011,7 @@ function App() {
 
     const isArtifact = (container) => {
         const name = container.Names[0].toLowerCase();
-        return name.includes('docker-pick') ||
+        return name.includes('dockerflex-') ||
             name.includes('buildx_buildkit');
     };
 

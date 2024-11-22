@@ -82,15 +82,26 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 
 ### Local Development Setup
 
-1. Start services:
+1. Clone the repository:
    ```bash
-   docker compose up -d
+   git clone https://github.com/mbakgun/dockerflex.git
+   cd dockerflex
    ```
 
-2. Development features:
+2. Start local development:
+   ```bash
+   # Stop any running instances
+   docker compose down
+   
+   # Build and start with local changes
+   docker compose -f docker-compose-local.yml up --build
+   ```
+
+3. Development features:
    - Hot reload for frontend
    - Auto-restart for backend
    - Volume mounts for local development
+   - Local changes reflected immediately
 
 ### Debugging
 
