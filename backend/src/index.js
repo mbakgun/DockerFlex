@@ -282,41 +282,34 @@ const executeWithFallback = async (container, commands, options = {}) => {
 app.put('/api/containers/:id/files', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
-        const {path, content} = req.body;
+        const { path, content, restart } = req.body;
 
-        // First check if path is writable
-        try {
-            await executeWithFallback(container, ['test', '-w', path.substring(0, path.lastIndexOf('/'))]);
-        } catch (error) {
-            return res.status(403).json({
-                error: 'Write permission denied',
-                details: 'This location is read-only or restricted'
-            });
-        }
-
-        // Create temporary directory with proper permissions
+        // Create temporary directory and file
         const tempDir = `/tmp/edit-${Date.now()}`;
         const tempFile = `${tempDir}/${path.split('/').pop()}`;
         const tempTar = `${tempDir}/content.tar`;
 
-        await fsPromises.mkdir(tempDir, {recursive: true, mode: 0o777});
-        await fsPromises.writeFile(tempFile, content, {mode: 0o666});
-
-        // Create and upload tar archive
-        const output = require('fs').createWriteStream(tempTar);
-        const archive = archiver('tar');
-        archive.pipe(output);
-        archive.file(tempFile, {name: path.split('/').pop()});
-        await archive.finalize();
-        await new Promise(resolve => output.on('close', resolve));
-
-        const tarBuffer = await fsPromises.readFile(tempTar);
-
         try {
+            // Create temp directory
+            await fsPromises.mkdir(tempDir, { recursive: true, mode: 0o777 });
+            // Write content to temp file
+            await fsPromises.writeFile(tempFile, content, { mode: 0o666 });
+
+            // Create tar archive
+            const output = require('fs').createWriteStream(tempTar);
+            const archive = archiver('tar');
+            archive.pipe(output);
+            archive.file(tempFile, { name: path.split('/').pop() });
+            await archive.finalize();
+            await new Promise(resolve => output.on('close', resolve));
+
+            // Read tar file
+            const tarBuffer = await fsPromises.readFile(tempTar);
+
             // Create directory and set permissions
             const targetDir = path.substring(0, path.lastIndexOf('/'));
-            await executeWithFallback(container, `mkdir -p "${targetDir}"`);
-            await executeWithFallback(container, `chmod 777 "${targetDir}"`);
+            await executeCommandWithPrivileges(container, `mkdir -p "${targetDir}"`);
+            await executeCommandWithPrivileges(container, `chmod 777 "${targetDir}"`);
 
             // Upload file
             await container.putArchive(tarBuffer, {
@@ -325,32 +318,55 @@ app.put('/api/containers/:id/files', async (req, res) => {
             });
 
             // Set file permissions
-            await executeWithFallback(container, `chmod 666 "${path}"`);
+            await executeCommandWithPrivileges(container, `chmod 666 "${path}"`);
 
-            // Get file info
-            const stream = await executeWithFallback(container, ['ls', '-laQ', path]);
-            let fileInfo = '';
-            await new Promise((resolve) => {
-                stream.on('data', chunk => fileInfo += chunk.toString());
+            // Get file size
+            const exec = await container.exec({
+                Cmd: ['stat', '-f', '%z', path],
+                AttachStdout: true,
+                AttachStderr: true,
+            });
+
+            const stream = await exec.start();
+            let size = '';
+            
+            await new Promise((resolve, reject) => {
+                stream.on('data', chunk => {
+                    size += chunk.toString();
+                });
                 stream.on('end', resolve);
+                stream.on('error', reject);
             });
 
-            const fileInfoParts = fileInfo.trim().split('\n')[0].match(/[^\s"']+|"([^"]*)"|'([^']*)'/g);
-            const newSize = fileInfoParts ? fileInfoParts[4] : null;
+            // If restart is requested, restart the container
+            if (restart) {
+                try {
+                    await container.restart();
+                } catch (restartError) {
+                    console.error('Error restarting container:', restartError);
+                    // Continue even if restart fails
+                }
+            }
 
-            res.json({
-                message: 'File updated successfully',
-                size: newSize
+            res.json({ 
+                message: 'File saved successfully',
+                size: parseInt(size.trim()),
+                restarted: restart 
             });
+
         } finally {
-            // Clean up
-            await fsPromises.rm(tempDir, {recursive: true, force: true});
+            // Clean up temp files
+            try {
+                await fsPromises.rm(tempDir, { recursive: true, force: true });
+            } catch (err) {
+                console.error('Error cleaning up temp files:', err);
+            }
         }
     } catch (error) {
         console.error('Error saving file:', error);
-        res.status(403).json({
+        res.status(500).json({ 
             error: 'Failed to save file',
-            details: `This location might be read-only or restricted. ${error.message}`
+            details: error.message 
         });
     }
 });
@@ -1124,5 +1140,16 @@ app.get('/api/containers/:id/download', async (req, res) => {
         if (!res.headersSent) {
             res.status(500).json({error: error.message});
         }
+    }
+});
+
+// Add new restart endpoint
+app.post('/api/containers/:id/restart', async (req, res) => {
+    try {
+        const container = docker.getContainer(req.params.id);
+        await container.restart();
+        res.json({ message: 'Container restarted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 }); 

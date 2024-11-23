@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
     AppBar,
@@ -26,6 +26,8 @@ import {
     Toolbar,
     Tooltip,
     Typography,
+    FormControlLabel,
+    Checkbox,
 } from '@material-ui/core';
 import {
     Add as AddIcon,
@@ -48,7 +50,7 @@ import {
     Stop as StoppedIcon,
 } from '@material-ui/icons';
 import MuiAlert from '@material-ui/lab/Alert';
-import {createMuiTheme} from '@material-ui/core/styles';
+import { createMuiTheme } from '@material-ui/core/styles';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import NoteAddIcon from '@material-ui/icons/NoteAdd';
@@ -329,15 +331,21 @@ const useStyles = makeStyles((theme) => ({
     },
     editor: {
         width: '100%',
-        height: '60vh',
+        height: '80vh',
         marginTop: theme.spacing(2),
         fontFamily: 'monospace',
         backgroundColor: '#0d1117',
         '& .MuiInputBase-root': {
             color: '#e6edf3',
             backgroundColor: '#0d1117',
+            height: '100%',
+        },
+        '& .MuiInputBase-inputMultiline': {
+            height: '100% !important',
+            overflow: 'auto !important',
         },
         '& .MuiOutlinedInput-root': {
+            height: '100%',
             '& fieldset': {
                 borderColor: '#30363d',
             },
@@ -548,16 +556,46 @@ const useStyles = makeStyles((theme) => ({
         '& .MuiDialog-paper': {
             backgroundColor: '#0d1117',
         },
+        [theme.breakpoints.down('sm')]: {
+            '& .MuiContainer-root': {
+                padding: theme.spacing(1),
+            },
+        },
     },
     editorAppBar: {
         backgroundColor: '#161b22 !important',
         borderBottom: '1px solid #30363d',
+        [theme.breakpoints.down('sm')]: {
+            '& .MuiToolbar-root': {
+                minHeight: '56px',
+                padding: '0 8px',
+            },
+            '& .MuiTypography-h6': {
+                fontSize: '1rem',
+                maxWidth: '50%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+            },
+        },
     },
     editorToolbar: {
         '& .MuiButton-root': {
             color: '#e6edf3',
             '&:hover': {
                 backgroundColor: 'rgba(56, 139, 253, 0.15)',
+            },
+        },
+        [theme.breakpoints.down('sm')]: {
+            '& .MuiButton-root': {
+                padding: '4px 8px',
+                minWidth: 'unset',
+                '& .MuiButton-startIcon': {
+                    margin: 0,
+                },
+                '& .MuiButton-label > span:last-child': {
+                    display: 'none', // Hide "Save" text on mobile
+                },
             },
         },
     },
@@ -621,6 +659,7 @@ const useStyles = makeStyles((theme) => ({
     toolbarActions: {
         display: 'flex',
         alignItems: 'center',
+        gap: theme.spacing(2),
         [theme.breakpoints.down('sm')]: {
             display: 'none',
         },
@@ -628,9 +667,9 @@ const useStyles = makeStyles((theme) => ({
     mobileMenuButton: {
         display: 'none',
         [theme.breakpoints.down('sm')]: {
-            display: 'flex',
+            display: 'block',
             marginLeft: 'auto',
-            marginRight: '8px',
+            marginRight: theme.spacing(1),
         },
     },
     mobileMenu: {
@@ -644,7 +683,6 @@ const useStyles = makeStyles((theme) => ({
     },
     mobileMenuItem: {
         color: '#e6edf3',
-        padding: theme.spacing(1, 2),
         '&:hover': {
             backgroundColor: 'rgba(56, 139, 253, 0.15)',
         },
@@ -652,12 +690,18 @@ const useStyles = makeStyles((theme) => ({
             color: '#e6edf3',
             minWidth: '40px',
         },
-        '& .MuiListItemText-primary': {
-            fontSize: '0.9rem',
-        },
-        '&.Mui-disabled': {
-            opacity: 0.5,
+    },
+    restartCheckbox: {
+        color: '#e6edf3',
+        marginRight: theme.spacing(2),
+        '& .MuiCheckbox-root': {
             color: '#8b949e',
+        },
+        '& .Mui-checked': {
+            color: '#f0883e',
+        },
+        '& .MuiFormControlLabel-label': {
+            color: '#e6edf3',
         },
     },
 }));
@@ -720,6 +764,8 @@ function App() {
     const [newItemName, setNewItemName] = useState('');
     const [newFileContent, setNewFileContent] = useState('');
     const [mobileMenuAnchor, setMobileMenuAnchor] = useState(null);
+    const [lastClickTime, setLastClickTime] = useState(0);
+    const [restartOnSave, setRestartOnSave] = useState(false);
 
     useEffect(() => {
         fetchContainers();
@@ -764,7 +810,7 @@ function App() {
             // Only handle alphanumeric keys
             if (!key.match(/^[a-z0-9]$/)) return;
 
-            // Update search string
+            // Update search string and find matching file
             setSearchString(prev => {
                 const newSearch = prev + key;
 
@@ -779,16 +825,35 @@ function App() {
                 }, 1000);
                 setSearchTimeout(timeout);
 
-                // Find matching file
+                // Find first matching file regardless of current selection
                 const matchingFile = files.find(file =>
-                    file.name.toLowerCase().startsWith(newSearch) &&
-                    (!selectedFile || file.name.toLowerCase() > selectedFile.name.toLowerCase())
-                ) || files.find(file =>
                     file.name.toLowerCase().startsWith(newSearch)
                 );
 
                 if (matchingFile) {
                     setSelectedFile(matchingFile);
+
+                    // Ensure the selected item is visible and not obscured
+                    requestAnimationFrame(() => {
+                        const selectedElement = document.querySelector(`.${classes.selectedItem}`);
+                        const fileList = document.querySelector(`.${classes.fileList}`);
+
+                        if (selectedElement && fileList) {
+                            const toolbarHeight = 64;
+                            const elementRect = selectedElement.getBoundingClientRect();
+                            const listRect = fileList.getBoundingClientRect();
+                            const topOffset = listRect.top + toolbarHeight;
+
+                            if (elementRect.top < topOffset) {
+                                selectedElement.scrollIntoView(true);
+                                fileList.scrollTop -= (toolbarHeight + 40); // Increased offset to prevent elements being hidden
+                            }
+                            selectedElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        }
+                    });
                 }
 
                 return newSearch;
@@ -802,7 +867,7 @@ function App() {
                 clearTimeout(searchTimeout);
             }
         };
-    }, [openDialog, openEditor, isRenaming, files, selectedFile, searchTimeout]);
+    }, [openDialog, openEditor, isRenaming, files, searchTimeout, classes.selectedItem, classes.fileList]);
 
     const fetchContainers = async () => {
         try {
@@ -828,7 +893,7 @@ function App() {
 
             const response = await axios.get(
                 `${INTERNAL_API_URL}/api/containers/${container.Id}/files`,
-                {params: {path: '/'}}
+                { params: { path: '/' } }
             );
 
             if (response.status === 200) {
@@ -836,7 +901,7 @@ function App() {
                 setCurrentPath('/');
                 setFiles(response.data);
                 setOpenDialog(true);
-                window.history.pushState({type: 'container', path: '/'}, '');
+                window.history.pushState({ type: 'container', path: '/' }, '');
             }
         } catch (error) {
             const message = error.response?.data?.details || error.message;
@@ -848,7 +913,7 @@ function App() {
     const fetchFiles = async (containerId, path) => {
         try {
             const response = await axios.get(`${INTERNAL_API_URL}/api/containers/${containerId}/files`, {
-                params: {path}
+                params: { path }
             });
             const filteredFiles = response.data.filter(file => {
                 return !file.name.startsWith('.') &&
@@ -872,13 +937,14 @@ function App() {
 
     const handleFileDoubleClick = async (file) => {
         if (file.type === 'directory') {
+            setSelectedFile(null);
             const newPath = currentPath === '/'
                 ? `/${file.name}`
                 : `${currentPath}/${file.name}`;
             setCurrentPath(newPath);
             try {
                 await fetchFiles(selectedContainer.Id, newPath);
-                window.history.pushState({type: 'directory', path: newPath}, '', window.location.pathname);
+                window.history.pushState({ type: 'directory', path: newPath }, '', window.location.pathname);
             } catch (error) {
                 showErrorMessage('Error accessing directory: ' + error.message);
             }
@@ -888,12 +954,11 @@ function App() {
                 const response = await axios.get(
                     `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files/content`,
                     {
-                        params: {path: filePath},
+                        params: { path: filePath },
                         headers: {
                             'Accept': 'text/plain'
                         },
                         transformResponse: [(data) => {
-                            // Ensure we return the raw string data
                             return data;
                         }]
                     }
@@ -903,7 +968,7 @@ function App() {
                     setFileContent(response.data);
                     setSelectedFile(file);
                     setOpenEditor(true);
-                    window.history.pushState({type: 'editor', path: currentPath}, '');
+                    window.history.pushState({ type: 'editor', path: currentPath }, '');
                 } else {
                     throw new Error('Failed to load file content');
                 }
@@ -928,7 +993,7 @@ function App() {
             setCurrentPath(parentPath);
             fetchFiles(selectedContainer.Id, parentPath);
             window.history.pushState(
-                {type: 'directory', path: parentPath},
+                { type: 'directory', path: parentPath },
                 '',
                 window.location.pathname
             );
@@ -985,28 +1050,39 @@ function App() {
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files`,
                 {
                     path: `${currentPath}/${selectedFile.name}`,
-                    content: fileContent
+                    content: fileContent,
+                    restart: restartOnSave
                 }
             );
 
             // Show success message
             showSuccessMessage('File saved successfully');
 
-            // Close editor
-            handleCloseEditor();
+            // If file was saved and container was restarted
+            if (response.data.restarted) {
+                showSuccessMessage('Container restarted successfully');
+                // Wait a bit before reloading to ensure container is up
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                // Close editor
+                handleCloseEditor();
 
-            // Refresh file list to get updated sizes
-            await fetchFiles(selectedContainer.Id, currentPath);
+                // Refresh file list to get updated sizes
+                await fetchFiles(selectedContainer.Id, currentPath);
 
-            // If the response includes new size, update the selected file
-            if (response.data.size) {
-                setSelectedFile(prev => ({
-                    ...prev,
-                    size: response.data.size
-                }));
+                // If the response includes new size, update the selected file
+                if (response.data.size) {
+                    setSelectedFile(prev => ({
+                        ...prev,
+                        size: response.data.size
+                    }));
+                }
             }
         } catch (error) {
-            showErrorMessage('Error saving file: ' + error.message);
+            const errorMessage = error.response?.data?.details || error.message;
+            showErrorMessage('Error saving file: ' + errorMessage);
         }
     };
 
@@ -1056,7 +1132,7 @@ function App() {
 
             await axios.put(
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files/rename`,
-                {oldPath, newPath}
+                { oldPath, newPath }
             );
 
             setIsRenaming(false);
@@ -1119,7 +1195,7 @@ function App() {
         e.preventDefault();
         e.stopPropagation();
         const rect = e.currentTarget.getBoundingClientRect();
-        const {clientX: x, clientY: y} = e;
+        const { clientX: x, clientY: y } = e;
 
         // Only set dragging to false if we've actually left the drop zone
         if (
@@ -1285,7 +1361,7 @@ function App() {
         const folderName = Object.keys(filesByPath)[0];
         if (folderName && filesByPath[folderName]) {
             const folderFiles = filesByPath[folderName];
-            const newItems = folderFiles.map(({file, relativePath}) => ({
+            const newItems = folderFiles.map(({ file, relativePath }) => ({
                 file,
                 path: `${currentPath}/${folderName}/${relativePath}`,
                 type: 'file',
@@ -1313,7 +1389,7 @@ function App() {
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/upload`,
                 formData,
                 {
-                    headers: {'Content-Type': 'multipart/form-data'},
+                    headers: { 'Content-Type': 'multipart/form-data' },
                 }
             );
 
@@ -1345,7 +1421,7 @@ function App() {
             e.preventDefault();
             e.stopPropagation();
             const rect = e.currentTarget.getBoundingClientRect();
-            const {clientX: x, clientY: y} = e;
+            const { clientX: x, clientY: y } = e;
 
             if (
                 x <= rect.left ||
@@ -1392,9 +1468,9 @@ function App() {
                 fullWidth
                 className={classes.uploadDialog}
             >
-                <DialogTitle style={{borderBottom: '1px solid #30363d'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#e6edf3'}}>
-                        <UploadIcon/>
+                <DialogTitle style={{ borderBottom: '1px solid #30363d' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#e6edf3' }}>
+                        <UploadIcon />
                         Upload Files
                     </div>
                 </DialogTitle>
@@ -1407,23 +1483,23 @@ function App() {
                         onDrop={handleDrop}
                         onClick={() => document.getElementById('file-input').click()}
                     >
-                        <CloudUpload style={{fontSize: 48, marginBottom: 16}}/>
+                        <CloudUpload style={{ fontSize: 48, marginBottom: 16 }} />
                         <Typography variant="h6">
                             Drag & Drop Files Here
                         </Typography>
-                        <Typography variant="body2" style={{color: '#8b949e'}}>
+                        <Typography variant="body2" style={{ color: '#8b949e' }}>
                             or click to select files (use the button below for folders)
                         </Typography>
                     </div>
 
-                    <Divider style={{margin: '16px 0', backgroundColor: '#30363d'}}/>
+                    <Divider style={{ margin: '16px 0', backgroundColor: '#30363d' }} />
 
-                    <div style={{textAlign: 'center'}}>
+                    <div style={{ textAlign: 'center' }}>
                         <input
                             type="file"
                             multiple
                             onChange={handleFileSelect}
-                            style={{display: 'none'}}
+                            style={{ display: 'none' }}
                             id="file-input"
                         />
                         <input
@@ -1431,19 +1507,19 @@ function App() {
                             webkitdirectory="true"
                             directory="true"
                             onChange={handleFolderSelect}
-                            style={{display: 'none'}}
+                            style={{ display: 'none' }}
                             id="folder-input"
                         />
                         <Button
                             variant="outlined"
                             color="primary"
-                            startIcon={<CreateNewFolderIcon style={{color: '#e6edf3'}}/>}
+                            startIcon={<CreateNewFolderIcon style={{ color: '#e6edf3' }} />}
                             onClick={() => document.getElementById('folder-input').click()}
-                            style={{width: '200px'}}
+                            style={{ width: '200px' }}
                         >
                             Select Folder
                         </Button>
-                        <Typography variant="caption" style={{display: 'block', marginTop: '8px', color: '#8b949e'}}>
+                        <Typography variant="caption" style={{ display: 'block', marginTop: '8px', color: '#8b949e' }}>
                             Select a single folder to upload its contents
                         </Typography>
                     </div>
@@ -1451,7 +1527,7 @@ function App() {
                     {/* Upload queue display */}
                     {uploadQueue.length > 0 && (
                         <>
-                            <Typography variant="subtitle1" style={{marginTop: '24px', color: '#e6edf3'}}>
+                            <Typography variant="subtitle1" style={{ marginTop: '24px', color: '#e6edf3' }}>
                                 Upload Queue ({uploadQueue.length} items)
                             </Typography>
                             <List className={classes.uploadList}>
@@ -1464,15 +1540,15 @@ function App() {
                                                 onClick={() => setUploadQueue(prev => prev.filter((_, i) => i !== index))}
                                                 size="small"
                                             >
-                                                <DeleteIcon/>
+                                                <DeleteIcon />
                                             </IconButton>
                                         }
                                     >
-                                        <InsertDriveFileIcon className={classes.uploadListIcon}/>
+                                        <InsertDriveFileIcon className={classes.uploadListIcon} />
                                         <ListItemText
                                             primary={item.displayName}
                                             secondary={item.path}
-                                            style={{wordBreak: 'break-all'}}
+                                            style={{ wordBreak: 'break-all' }}
                                         />
                                     </ListItem>
                                 ))}
@@ -1481,14 +1557,14 @@ function App() {
                     )}
                 </DialogContent>
                 <DialogActions className={classes.uploadActions}>
-                    <Button onClick={handleClose} style={{color: '#8b949e'}}>
+                    <Button onClick={handleClose} style={{ color: '#8b949e' }}>
                         Cancel
                     </Button>
                     <Button
                         onClick={handleUpload}
                         variant="contained"
                         disabled={uploadQueue.length === 0}
-                        startIcon={<CloudUpload style={{color: '#ffffff'}}/>}
+                        startIcon={<CloudUpload style={{ color: '#ffffff' }} />}
                     >
                         Upload ({uploadQueue.length} items)
                     </Button>
@@ -1613,20 +1689,32 @@ function App() {
         setMobileMenuAnchor(null);
     };
 
-    // Add this new function near the other handlers
+    // Update the handleListItemClick function
     const handleListItemClick = (file) => {
-        // For mobile devices, use a single click with a small delay
+        const currentTime = new Date().getTime();
+        const timeDiff = currentTime - lastClickTime;
+
+        // For mobile devices
         if (window.innerWidth <= 600) {
             if (selectedFile?.name === file.name) {
-                // If same file is clicked again within 300ms, treat as double click
-                handleFileDoubleClick(file);
+                if (timeDiff < 300) {
+                    // Double click - open file/folder
+                    handleFileDoubleClick(file);
+                } else {
+                    // Second click after timeout - deselect
+                    setSelectedFile(null);
+                }
             } else {
+                // First click on a new item - select it
                 handleFileClick(file);
             }
         } else {
-            // On desktop, use normal click behavior
+            // Desktop behavior remains unchanged
             handleFileClick(file);
         }
+
+        // Update last click time
+        setLastClickTime(currentTime);
     };
 
     return (
@@ -1639,7 +1727,7 @@ function App() {
                         </Typography>
                     </Grow>
 
-                    <Divider className={classes.divider}/>
+                    <Divider className={classes.divider} />
 
                     <Typography variant="subtitle1" className={classes.hostInfo}>
                         Host: {hostInfo}
@@ -1690,7 +1778,7 @@ function App() {
                                 >
                                     <CardContent className={classes.cardContent}>
                                         <div className={classes.containerName}>
-                                            <CodeIcon/>
+                                            <CodeIcon />
                                             <Typography variant="h6" component="h2">
                                                 {container.Names[0].replace('/', '')}
                                             </Typography>
@@ -1699,14 +1787,14 @@ function App() {
                                         <div className={classes.statusChip}>
                                             <div className={classes.statusText}>
                                                 {container.State === 'running' ? (
-                                                    <RunningIcon style={{fontSize: 20, color: '#4caf50'}}/>
+                                                    <RunningIcon style={{ fontSize: 20, color: '#4caf50' }} />
                                                 ) : (
-                                                    <StoppedIcon style={{fontSize: 20, color: '#f44336'}}/>
+                                                    <StoppedIcon style={{ fontSize: 20, color: '#f44336' }} />
                                                 )}
                                                 Status: {container.State}
                                                 {container.State !== 'running' && (
                                                     <Typography variant="caption"
-                                                                style={{marginLeft: 8, color: '#e6edf3'}}>
+                                                        style={{ marginLeft: 8, color: '#e6edf3' }}>
                                                         (Click to start)
                                                     </Typography>
                                                 )}
@@ -1734,17 +1822,17 @@ function App() {
                 >
                     <AppBar
                         className={`${classes.appBar} ${getAppBarClass()}`}
-                        style={{transition: 'none'}}
+                        style={{ transition: 'none' }}
                     >
                         <Toolbar className={classes.toolbar}>
-                            <div style={{display: 'flex', alignItems: 'center'}}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
                                 <Tooltip title="Go Back" arrow>
                                     <IconButton
                                         color="inherit"
                                         onClick={handleBack}
                                         className={classes.backButton}
                                     >
-                                        <ArrowBack/>
+                                        <ArrowBack />
                                     </IconButton>
                                 </Tooltip>
                                 <Typography variant="h6">
@@ -1757,95 +1845,156 @@ function App() {
 
                             {/* Desktop Actions */}
                             <div className={classes.toolbarActions}>
-                                <Tooltip title="Create New" arrow>
-                                    <IconButton color="inherit" onClick={handleNewItemClick}>
-                                        <AddIcon/>
-                                    </IconButton>
-                                </Tooltip>
-                                <Menu
-                                    anchorEl={newItemAnchorEl}
-                                    keepMounted
-                                    open={Boolean(newItemAnchorEl)}
-                                    onClose={handleNewItemClose}
-                                    PaperProps={{
-                                        style: {
-                                            backgroundColor: '#21262d',
-                                            color: '#e6edf3',
-                                            border: '1px solid #30363d',
-                                        },
-                                    }}
-                                >
-                                    <MenuItem onClick={() => handleNewItemTypeSelect('folder')}
-                                              style={{color: '#e6edf3'}}>
-                                        <CreateNewFolderIcon style={{marginRight: 8}}/>
-                                        New Folder
-                                    </MenuItem>
-                                    <MenuItem onClick={() => handleNewItemTypeSelect('file')}
-                                              style={{color: '#e6edf3'}}>
-                                        <NoteAddIcon style={{marginRight: 8}}/>
-                                        New File
-                                    </MenuItem>
-                                </Menu>
+                                {/* File Creation Group */}
+                                <div style={{
+                                    display: 'flex',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    <Tooltip title="Create New" arrow>
+                                        <IconButton
+                                            size="small"
+                                            color="inherit"
+                                            onClick={handleNewItemClick}
+                                            style={{ margin: '0 2px' }}
+                                        >
+                                            <AddIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Menu
+                                        anchorEl={newItemAnchorEl}
+                                        keepMounted
+                                        open={Boolean(newItemAnchorEl)}
+                                        onClose={handleNewItemClose}
+                                        PaperProps={{
+                                            style: {
+                                                backgroundColor: '#21262d',
+                                                color: '#e6edf3',
+                                                border: '1px solid #30363d',
+                                            },
+                                        }}
+                                    >
+                                        <MenuItem onClick={() => handleNewItemTypeSelect('folder')}
+                                            style={{ color: '#e6edf3' }}>
+                                            <CreateNewFolderIcon style={{ marginRight: 8 }} />
+                                            New Folder
+                                        </MenuItem>
+                                        <MenuItem onClick={() => handleNewItemTypeSelect('file')}
+                                            style={{ color: '#e6edf3' }}>
+                                            <NoteAddIcon style={{ marginRight: 8 }} />
+                                            New File
+                                        </MenuItem>
+                                    </Menu>
+                                    <Tooltip title="Upload Files/Folders" arrow>
+                                        <IconButton
+                                            size="small"
+                                            color="inherit"
+                                            onClick={handleUploadClick}
+                                            style={{ margin: '0 2px' }}
+                                        >
+                                            <CloudUpload />
+                                        </IconButton>
+                                    </Tooltip>
+                                </div>
 
-                                <Tooltip title="Upload Files/Folders" arrow>
-                                    <IconButton color="inherit" onClick={handleUploadClick}>
-                                        <CloudUpload/>
-                                    </IconButton>
-                                </Tooltip>
+                                {/* Vertical Divider */}
+                                <div style={{
+                                    width: '1px',
+                                    height: '20px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    margin: '0 4px'
+                                }} />
 
-                                <Tooltip title="Download Selected" arrow>
-                  <span>
-                    <IconButton
-                        color="inherit"
-                        disabled={!selectedFile}
-                        onClick={handleDownload}
-                    >
-                      <GetApp/>
-                    </IconButton>
-                  </span>
-                                </Tooltip>
+                                {/* File Operations Group */}
+                                <div style={{
+                                    display: 'flex',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '4px',
+                                    padding: '2px 4px',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    <Tooltip title="Download Selected" arrow>
+                                        <span style={{ margin: '0 2px' }}>
+                                            <IconButton
+                                                size="small"
+                                                color="inherit"
+                                                disabled={!selectedFile}
+                                                onClick={handleDownload}
+                                            >
+                                                <GetApp />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
 
-                                <Tooltip title="Rename Selected" arrow>
-                  <span>
-                    <IconButton
-                        color="inherit"
-                        disabled={!selectedFile}
-                        onClick={handleRenameClick}
-                    >
-                      <Edit/>
-                    </IconButton>
-                  </span>
-                                </Tooltip>
+                                    <Tooltip title="Rename Selected" arrow>
+                                        <span style={{ margin: '0 2px' }}>
+                                            <IconButton
+                                                size="small"
+                                                color="inherit"
+                                                disabled={!selectedFile}
+                                                onClick={handleRenameClick}
+                                            >
+                                                <Edit />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
 
-                                <Tooltip title="Delete Selected" arrow>
-                  <span>
-                    <IconButton
-                        color="inherit"
-                        disabled={!selectedFile}
-                        onClick={handleDeleteFile}
-                    >
-                      <Delete/>
-                    </IconButton>
-                  </span>
-                                </Tooltip>
+                                    <Tooltip title="Delete Selected" arrow>
+                                        <span style={{ margin: '0 2px' }}>
+                                            <IconButton
+                                                size="small"
+                                                color="inherit"
+                                                disabled={!selectedFile}
+                                                onClick={handleDeleteFile}
+                                            >
+                                                <Delete />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                </div>
 
-                                <Tooltip title="Close" arrow>
-                                    <IconButton color="inherit" onClick={handleCloseDialog}>
-                                        <CloseIcon/>
-                                    </IconButton>
-                                </Tooltip>
+                                {/* Vertical Divider */}
+                                <div style={{
+                                    width: '1px',
+                                    height: '20px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    margin: '0 4px'
+                                }} />
+
+                                {/* Dialog Control Group */}
+                                <div style={{
+                                    display: 'flex',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '4px',
+                                    padding: '2px',
+                                    alignItems: 'center'
+                                }}>
+                                    <Tooltip title="Close" arrow>
+                                        <IconButton
+                                            size="small"
+                                            color="inherit"
+                                            onClick={handleCloseDialog}
+                                            style={{ margin: '0 2px' }}
+                                        >
+                                            <CloseIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                </div>
                             </div>
 
                             {/* Mobile Menu Button */}
-                            <div className={classes.mobileMenuButton}>
-                                <IconButton
-                                    color="inherit"
-                                    onClick={handleMobileMenuOpen}
-                                    edge="end"
-                                >
-                                    <MenuIcon/>
-                                </IconButton>
-                            </div>
+                            <IconButton
+                                className={classes.mobileMenuButton}
+                                color="inherit"
+                                onClick={handleMobileMenuOpen}
+                                edge="end"
+                            >
+                                <MenuIcon />
+                            </IconButton>
 
                             {/* Mobile Menu */}
                             <Menu
@@ -1856,85 +2005,82 @@ function App() {
                                 className={classes.mobileMenu}
                             >
                                 <MenuItem
-                                    onClick={(e) => {
+                                    onClick={() => {
+                                        handleNewItemTypeSelect('file');
                                         handleMobileMenuClose();
-                                        handleNewItemClick(e);  // pass the event
                                     }}
                                     className={classes.mobileMenuItem}
                                 >
                                     <ListItemIcon>
-                                        <AddIcon/>
+                                        <NoteAddIcon />
                                     </ListItemIcon>
-                                    <ListItemText primary="Create New"/>
+                                    <ListItemText primary="New File" />
                                 </MenuItem>
-
                                 <MenuItem
-                                    onClick={(e) => {
+                                    onClick={() => {
+                                        handleNewItemTypeSelect('folder');
+                                        handleMobileMenuClose();
+                                    }}
+                                    className={classes.mobileMenuItem}
+                                >
+                                    <ListItemIcon>
+                                        <CreateNewFolderIcon />
+                                    </ListItemIcon>
+                                    <ListItemText primary="New Folder" />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
                                         handleUploadClick();
                                         handleMobileMenuClose();
                                     }}
                                     className={classes.mobileMenuItem}
                                 >
                                     <ListItemIcon>
-                                        <CloudUpload/>
+                                        <CloudUpload />
                                     </ListItemIcon>
-                                    <ListItemText primary="Upload"/>
+                                    <ListItemText primary="Upload" />
                                 </MenuItem>
-
-                                <MenuItem
-                                    onClick={(e) => {
-                                        handleDownload();
-                                        handleMobileMenuClose();
-                                    }}
-                                    disabled={!selectedFile}
-                                    className={classes.mobileMenuItem}
-                                >
-                                    <ListItemIcon>
-                                        <GetApp/>
-                                    </ListItemIcon>
-                                    <ListItemText primary="Download"/>
-                                </MenuItem>
-
-                                <MenuItem
-                                    onClick={(e) => {
-                                        handleRenameClick();
-                                        handleMobileMenuClose();
-                                    }}
-                                    disabled={!selectedFile}
-                                    className={classes.mobileMenuItem}
-                                >
-                                    <ListItemIcon>
-                                        <Edit/>
-                                    </ListItemIcon>
-                                    <ListItemText primary="Rename"/>
-                                </MenuItem>
-
-                                <MenuItem
-                                    onClick={(e) => {
-                                        handleDeleteFile();
-                                        handleMobileMenuClose();
-                                    }}
-                                    disabled={!selectedFile}
-                                    className={classes.mobileMenuItem}
-                                >
-                                    <ListItemIcon>
-                                        <Delete/>
-                                    </ListItemIcon>
-                                    <ListItemText primary="Delete"/>
-                                </MenuItem>
-
-                                <MenuItem
-                                    onClick={(e) => {
-                                        handleCloseDialog();
-                                        handleMobileMenuClose();
-                                    }}
-                                    className={classes.mobileMenuItem}
-                                >
-                                    <ListItemIcon>
-                                        <CloseIcon/>
-                                    </ListItemIcon>
-                                    <ListItemText primary="Close"/>
-                                </MenuItem>
+                                {selectedFile && (
+                                    <>
+                                        <Divider />
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleDownload();
+                                                handleMobileMenuClose();
+                                            }}
+                                            className={classes.mobileMenuItem}
+                                        >
+                                            <ListItemIcon>
+                                                <GetApp />
+                                            </ListItemIcon>
+                                            <ListItemText primary="Download" />
+                                        </MenuItem>
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleRenameClick();
+                                                handleMobileMenuClose();
+                                            }}
+                                            className={classes.mobileMenuItem}
+                                        >
+                                            <ListItemIcon>
+                                                <Edit />
+                                            </ListItemIcon>
+                                            <ListItemText primary="Rename" />
+                                        </MenuItem>
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleDeleteFile();
+                                                handleMobileMenuClose();
+                                            }}
+                                            className={classes.mobileMenuItem}
+                                        >
+                                            <ListItemIcon>
+                                                <Delete />
+                                            </ListItemIcon>
+                                            <ListItemText primary="Delete" />
+                                        </MenuItem>
+                                    </>
+                                )}
                             </Menu>
                         </Toolbar>
                     </AppBar>
@@ -1962,15 +2108,15 @@ function App() {
                                         fullWidth
                                         className={classes.renameTextField}
                                         InputProps={{
-                                            style: {color: '#ffffff'}
+                                            style: { color: '#ffffff' }
                                         }}
                                     />
                                 ) : (
                                     <>
                                         {file.type === 'directory' ? (
-                                            <Folder style={{marginRight: 8, color: '#ffffff'}}/>
+                                            <Folder style={{ marginRight: 8, color: '#ffffff' }} />
                                         ) : (
-                                            <InsertDriveFile style={{marginRight: 8, color: '#ffffff'}}/>
+                                            <InsertDriveFile style={{ marginRight: 8, color: '#ffffff' }} />
                                         )}
                                         <ListItemText
                                             primary={file.displayName || cleanFileName(file.name)}
@@ -1992,13 +2138,24 @@ function App() {
                 >
                     <AppBar className={`${classes.appBar} ${classes.editorAppBar}`}>
                         <Toolbar className={`${classes.toolbar} ${classes.editorToolbar}`}>
-                            <Typography variant="h6" style={{color: '#e6edf3'}}>
-                                Editing: {selectedFile?.name}
+                            <Typography variant="h6" style={{ color: '#e6edf3' }}>
+                                {selectedFile?.name}
                             </Typography>
-                            <div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={restartOnSave}
+                                            onChange={(e) => setRestartOnSave(e.target.checked)}
+                                            name="restartOnSave"
+                                        />
+                                    }
+                                    label="Restart container on save"
+                                    className={classes.restartCheckbox}
+                                />
                                 <Button
                                     onClick={handleSaveFile}
-                                    startIcon={<SaveIcon/>}
+                                    startIcon={<SaveIcon />}
                                     style={{
                                         backgroundColor: '#f0883e',
                                         color: '#ffffff',
@@ -2006,18 +2163,23 @@ function App() {
                                     }}
                                     variant="contained"
                                 >
-                                    Save
+                                    <span>Save</span>
                                 </Button>
                                 <IconButton
                                     onClick={handleCloseEditor}
-                                    style={{color: '#e6edf3'}}
+                                    style={{ color: '#e6edf3' }}
+                                    edge="end"
                                 >
-                                    <CloseIcon/>
+                                    <CloseIcon />
                                 </IconButton>
                             </div>
                         </Toolbar>
                     </AppBar>
-                    <Container style={{backgroundColor: '#0d1117', height: '100%', paddingTop: '24px'}}>
+                    <Container style={{
+                        backgroundColor: '#0d1117',
+                        height: '100%',
+                        paddingTop: window.innerWidth <= 600 ? '8px' : '24px'
+                    }}>
                         <TextField
                             className={classes.editor}
                             multiline
@@ -2033,7 +2195,7 @@ function App() {
                     open={showError}
                     autoHideDuration={6000}
                     onClose={() => setShowError(false)}
-                    anchorOrigin={{vertical: 'bottom', horizontal: 'left'}}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
                 >
                     <Alert
                         onClose={() => setShowError(false)}
@@ -2049,7 +2211,7 @@ function App() {
                     </div>
                 )}
 
-                <UploadDialog/>
+                <UploadDialog />
 
                 <Snackbar
                     open={!!error}
@@ -2086,7 +2248,7 @@ function App() {
                     maxWidth="sm"
                     fullWidth
                 >
-                    <DialogTitle style={{borderBottom: '1px solid #30363d'}}>
+                    <DialogTitle style={{ borderBottom: '1px solid #30363d' }}>
                         {newItemType === 'folder' ? 'Create New Folder' : 'Create New File'}
                     </DialogTitle>
                     <DialogContent>
@@ -2100,7 +2262,7 @@ function App() {
                             onChange={(e) => setNewItemName(cleanFileName(e.target.value))}
                             className={classes.newItemTextField}
                             variant="outlined"
-                            style={{marginTop: '16px'}}
+                            style={{ marginTop: '16px' }}
                         />
                         {newItemType === 'file' && (
                             <TextField
@@ -2113,12 +2275,12 @@ function App() {
                                 onChange={(e) => setNewFileContent(e.target.value)}
                                 className={`${classes.newItemTextField} ${classes.newItemContent}`}
                                 variant="outlined"
-                                style={{marginTop: '16px'}}
+                                style={{ marginTop: '16px' }}
                             />
                         )}
                     </DialogContent>
-                    <DialogActions style={{borderTop: '1px solid #30363d', padding: '16px'}}>
-                        <Button onClick={() => setNewItemDialog(false)} style={{color: '#8b949e'}}>
+                    <DialogActions style={{ borderTop: '1px solid #30363d', padding: '16px' }}>
+                        <Button onClick={() => setNewItemDialog(false)} style={{ color: '#8b949e' }}>
                             Cancel
                         </Button>
                         <Button
