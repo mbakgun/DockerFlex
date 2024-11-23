@@ -48,6 +48,7 @@ import {
     PlayArrow as RunningIcon,
     Save as SaveIcon,
     Stop as StoppedIcon,
+    GitHub as GitHubIcon,
 } from '@material-ui/icons';
 import MuiAlert from '@material-ui/lab/Alert';
 import { createMuiTheme } from '@material-ui/core/styles';
@@ -140,10 +141,23 @@ const useStyles = makeStyles((theme) => ({
         textAlign: 'center',
         marginBottom: theme.spacing(2),
         letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing(2),
         [theme.breakpoints.down('sm')]: {
             fontSize: '1.75rem',
             padding: '0 16px',
             wordBreak: 'break-word',
+        },
+    },
+    githubButton: {
+        color: '#e6edf3',
+        transition: 'transform 0.2s, color 0.2s',
+        '&:hover': {
+            color: '#58a6ff',
+            transform: 'scale(1.1)',
+            backgroundColor: 'transparent',
         },
     },
     hostInfo: {
@@ -1724,6 +1738,15 @@ function App() {
                     <Grow in timeout={1000}>
                         <Typography variant="h3" component="h1" className={classes.title}>
                             DockerFlex
+                            <IconButton
+                                href="https://github.com/mbakgun/dockerflex"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={classes.githubButton}
+                                aria-label="GitHub Repository"
+                            >
+                                <GitHubIcon />
+                            </IconButton>
                         </Typography>
                     </Grow>
 

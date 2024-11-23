@@ -89,6 +89,7 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
        image: mbakgun/dockerflex-frontend:latest
        hostname: dockerflex-frontend
        container_name: dockerflex-frontend
+       restart: unless-stopped
        ports:
          - "3200:3200"
        environment:
@@ -101,9 +102,9 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
        image: mbakgun/dockerflex-backend:latest
        hostname: dockerflex-backend
        container_name: dockerflex-backend
+       restart: unless-stopped
        expose:
          - "4200"
-
        volumes:
          - /var/run/docker.sock:/var/run/docker.sock
        networks:
@@ -114,6 +115,7 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
    services:
      frontend:
        image: mbakgun/dockerflex-frontend:latest
+       restart: unless-stopped
        environment:
          - VITE_HOSTNAME=Production Server    # Custom hostname
          - VITE_API_URL=/api                  # API path prefix
