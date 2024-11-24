@@ -7,7 +7,7 @@
   
   *Manage Docker container files with elegance - your containers, your control*
 
-  [![Docker Pulls](https://img.shields.io/docker/pulls/mbakgun/dockerflex-backend.svg?label=docker20pulls)](https://hub.docker.com/r/mbakgun/dockerflex-backend)
+  [![Docker Pulls](https://img.shields.io/docker/pulls/mbakgun/dockerflex-backend.svg?label=docker%20pulls)](https://hub.docker.com/r/mbakgun/dockerflex-backend)
   [![GitHub License](https://img.shields.io/github/license/mbakgun/dockerflex)](https://github.com/mbakgun/dockerflex/blob/master/LICENSE)
   [![GitHub Stars](https://img.shields.io/github/stars/mbakgun/dockerflex?style=social)](https://github.com/mbakgun/dockerflex)
 
