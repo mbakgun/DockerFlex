@@ -16,7 +16,7 @@
 <p align="center">
   <a href="#-overview">Overview</a> •
   <a href="#-key-features">Features</a> •
-  <a href="#-getting-started">Getting Started</a> •
+  <a href="#-installation">Getting Started</a> •
   <a href="#-development">Development</a> •
   <a href="#-contributing">Contributing</a>
 </p>
