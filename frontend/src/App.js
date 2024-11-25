@@ -1770,7 +1770,7 @@ function App() {
     };
 
     // Add this function to filter files
-    const filteredFiles = files.filter(file => 
+    const filteredFiles = files.filter(file =>
         file.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -2336,6 +2336,19 @@ function App() {
                             variant="outlined"
                             value={fileContent}
                             onChange={(e) => setFileContent(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    const start = e.target.selectionStart;
+                                    const end = e.target.selectionEnd;
+                                    const newContent = fileContent.substring(0, start) + '\t' + fileContent.substring(end);
+                                    setFileContent(newContent);
+                                    
+                                    setTimeout(() => {
+                                        e.target.selectionStart = e.target.selectionEnd = start + 1;
+                                    }, 0);
+                                }
+                            }}
                         />
                     </Container>
                 </Dialog>
@@ -2422,6 +2435,18 @@ function App() {
                                 fullWidth
                                 value={newFileContent}
                                 onChange={(e) => setNewFileContent(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Tab') {
+                                        e.preventDefault();
+                                        const start = e.target.selectionStart;
+                                        const end = e.target.selectionEnd;
+                                        const newContent = newFileContent.substring(0, start) + '\t' + newFileContent.substring(end);
+                                        setNewFileContent(newContent);
+                                        setTimeout(() => {
+                                            e.target.selectionStart = e.target.selectionEnd = start + 1;
+                                        }, 0);
+                                    }
+                                }}
                                 className={`${classes.newItemTextField} ${classes.newItemContent}`}
                                 variant="outlined"
                                 style={{ marginTop: '16px' }}
