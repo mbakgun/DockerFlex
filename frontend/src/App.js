@@ -49,6 +49,8 @@ import {
     Save as SaveIcon,
     Stop as StoppedIcon,
     GitHub as GitHubIcon,
+    Search as SearchIcon,
+    Clear as ClearIcon,
 } from '@material-ui/icons';
 import MuiAlert from '@material-ui/lab/Alert';
 import { createMuiTheme } from '@material-ui/core/styles';
@@ -718,6 +720,39 @@ const useStyles = makeStyles((theme) => ({
             color: '#e6edf3',
         },
     },
+    searchContainer: {
+        display: 'flex',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '4px',
+        padding: '2px',
+        alignItems: 'center',
+        transition: 'all 0.3s ease',
+        width: '30px',
+        '&.expanded': {
+            width: '300px',
+            backgroundColor: '#21262d',
+        },
+        [theme.breakpoints.down('sm')]: {
+            display: 'none',
+        },
+    },
+    searchInput: {
+        color: '#ffffff',
+        border: 'none',
+        background: 'transparent',
+        outline: 'none',
+        padding: '4px 4px',
+        margin: 0,
+        width: '0',
+        transition: 'width 0.3s ease',
+        '&::placeholder': {
+            color: 'rgba(255, 255, 255, 0.7)',
+        },
+        '&.expanded': {
+            width: '100%',
+            marginLeft: '4px',
+        },
+    },
 }));
 
 function Alert(props) {
@@ -780,6 +815,9 @@ function App() {
     const [mobileMenuAnchor, setMobileMenuAnchor] = useState(null);
     const [lastClickTime, setLastClickTime] = useState(0);
     const [restartOnSave, setRestartOnSave] = useState(false);
+    const [searchExpanded, setSearchExpanded] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [mobileSearchDialog, setMobileSearchDialog] = useState(false);
 
     useEffect(() => {
         fetchContainers();
@@ -1731,6 +1769,40 @@ function App() {
         setLastClickTime(currentTime);
     };
 
+    // Add this function to filter files
+    const filteredFiles = files.filter(file => 
+        file.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Add handler for search toggle
+    const handleSearchToggle = () => {
+        if (!searchExpanded) {
+            setSearchExpanded(true);
+            setTimeout(() => document.getElementById('search-input')?.focus(), 100);
+        } else if (!searchQuery) {
+            setSearchExpanded(false);
+        }
+    };
+
+    const handleSearchBlur = () => {
+        if (!searchQuery) {
+            setSearchExpanded(false);
+        }
+    };
+
+    const handleSearchKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            setSearchQuery('');
+            setSearchExpanded(false);
+        }
+    };
+
+    // Add effect to clear search when changing folders
+    useEffect(() => {
+        setSearchQuery('');
+        setSearchExpanded(false);
+    }, [currentPath]);
+
     return (
         <>
             <Container className={classes.root} maxWidth="xl">
@@ -1868,6 +1940,47 @@ function App() {
 
                             {/* Desktop Actions */}
                             <div className={classes.toolbarActions}>
+                                {/* Search Group */}
+                                <div className={`${classes.searchContainer} ${searchExpanded ? 'expanded' : ''}`}>
+                                    <IconButton
+                                        size="small"
+                                        color="inherit"
+                                        onClick={handleSearchToggle}
+                                    >
+                                        <SearchIcon />
+                                    </IconButton>
+                                    <input
+                                        id="search-input"
+                                        type="text"
+                                        placeholder={searchExpanded ? "Search current folder..." : ""}
+                                        className={`${classes.searchInput} ${searchExpanded ? 'expanded' : ''}`}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onBlur={handleSearchBlur}
+                                        onKeyDown={handleSearchKeyDown}
+                                    />
+                                    {searchExpanded && searchQuery && (
+                                        <IconButton
+                                            size="small"
+                                            color="inherit"
+                                            onClick={() => {
+                                                setSearchQuery('');
+                                                document.getElementById('search-input')?.focus();
+                                            }}
+                                        >
+                                            <ClearIcon />
+                                        </IconButton>
+                                    )}
+                                </div>
+
+                                {/* Vertical Divider after Search */}
+                                <div style={{
+                                    width: '1px',
+                                    height: '20px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    margin: '0 4px'
+                                }} />
+
                                 {/* File Creation Group */}
                                 <div style={{
                                     display: 'flex',
@@ -2029,6 +2142,19 @@ function App() {
                             >
                                 <MenuItem
                                     onClick={() => {
+                                        handleMobileMenuClose();
+                                        // Open a dialog for mobile search
+                                        setMobileSearchDialog(true);
+                                    }}
+                                    className={classes.mobileMenuItem}
+                                >
+                                    <ListItemIcon>
+                                        <SearchIcon />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Search Files" />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
                                         handleNewItemTypeSelect('file');
                                         handleMobileMenuClose();
                                     }}
@@ -2108,7 +2234,7 @@ function App() {
                         </Toolbar>
                     </AppBar>
                     <List className={classes.fileList}>
-                        {files.map((file, index) => (
+                        {filteredFiles.map((file, index) => (
                             <ListItem
                                 button
                                 key={index}
@@ -2315,6 +2441,39 @@ function App() {
                             Create
                         </Button>
                     </DialogActions>
+                </Dialog>
+
+                <Dialog
+                    open={mobileSearchDialog}
+                    onClose={() => setMobileSearchDialog(false)}
+                    fullWidth
+                    maxWidth="sm"
+                    className={classes.newItemDialog}
+                >
+                    <DialogTitle>Search Files</DialogTitle>
+                    <DialogContent>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label="Search"
+                            type="text"
+                            fullWidth
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={classes.newItemTextField}
+                            variant="outlined"
+                            InputProps={{
+                                endAdornment: searchQuery && (
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => setSearchQuery('')}
+                                    >
+                                        <ClearIcon />
+                                    </IconButton>
+                                )
+                            }}
+                        />
+                    </DialogContent>
                 </Dialog>
             </Container>
         </>
