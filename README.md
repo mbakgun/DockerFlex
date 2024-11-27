@@ -54,7 +54,7 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 4. Push to the branch
 5. Create a Pull Request
 
-## ✍️ Advanced Code Editor
+## ✍️ Version History
 
 • [✓] Syntax highlighting for [JavaScript/TypeScript, Python, PHP, SQL, HTML/CSS, XML, YAML/YML, JSON, Markdown, Shell/Bash, Go, NGINX Config, TOML]
 
