@@ -57,6 +57,21 @@ import { createMuiTheme } from '@material-ui/core/styles';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import NoteAddIcon from '@material-ui/icons/NoteAdd';
+import CodeMirror from '@uiw/react-codemirror';
+import { javascript } from '@codemirror/lang-javascript';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { json } from '@codemirror/lang-json';
+import { yaml } from '@codemirror/lang-yaml';
+import { xml } from '@codemirror/lang-xml';
+import { sql } from '@codemirror/lang-sql';
+import { python } from '@codemirror/lang-python';
+import { php } from '@codemirror/lang-php';
+import { markdown } from '@codemirror/lang-markdown';
+import { css } from '@codemirror/lang-css';
+import { html } from '@codemirror/lang-html';
+import { linter, lintGutter } from "@codemirror/lint";
+import jsonlint from 'jsonlint-mod';
+import yamlLint from 'yaml-lint';
 
 const theme = createMuiTheme({
     palette: {
@@ -347,31 +362,53 @@ const useStyles = makeStyles((theme) => ({
     },
     editor: {
         width: '100%',
-        height: '80vh',
-        marginTop: theme.spacing(2),
-        fontFamily: 'monospace',
-        backgroundColor: '#0d1117',
-        '& .MuiInputBase-root': {
-            color: '#e6edf3',
+        height: 'calc(100vh - 64px)',
+        '& .cm-editor': {
+            height: '100%',
+            fontSize: '14px',
             backgroundColor: '#0d1117',
-            height: '100%',
         },
-        '& .MuiInputBase-inputMultiline': {
+        '& .cm-scroller': {
             height: '100% !important',
-            overflow: 'auto !important',
+            backgroundColor: '#0d1117',
         },
-        '& .MuiOutlinedInput-root': {
-            height: '100%',
-            '& fieldset': {
-                borderColor: '#30363d',
-            },
-            '&:hover fieldset': {
-                borderColor: '#6e7681',
-            },
-            '&.Mui-focused fieldset': {
-                borderColor: '#58a6ff',
-            },
+        '& .cm-gutters': {
+            backgroundColor: '#0d1117',
+            borderRight: '1px solid #30363d',
         },
+        // Linting styles
+        '& .cm-diagnostic-error': {
+            borderLeft: '2px solid #ff0000',
+        },
+        '& .cm-lint-marker, & .cm-lint-marker-error': {
+            display: 'none',
+        },
+        '& .cm-lintRange': {
+            textDecoration: 'none'
+        },
+        '& .cm-tooltip-hover.cm-tooltip': {
+            zIndex: 1500,
+            backgroundColor: '#21262d',
+            border: '1px solid #30363d',
+            color: '#e6edf3',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            position: 'absolute',
+            opacity: 0,
+            transition: 'opacity 0.01s ease-in',
+            '&.visible': {
+                opacity: 1,
+            }
+        },
+        '& .cm-tooltip-hover.cm-tooltip.cm-tooltip-above': {
+            position: 'absolute',
+        }
+    },
+    editorContainer: {
+        backgroundColor: '#0d1117',
+        height: 'calc(100vh - 64px)',
+        padding: 0,
+        overflow: 'hidden',
     },
     breadcrumb: {
         marginLeft: theme.spacing(2),
@@ -770,6 +807,67 @@ const cleanFileName = (fileName) => {
 // Use environment variables for API URLs
 const INTERNAL_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4200';
 const HOSTNAME = import.meta.env.VITE_HOSTNAME || 'Docker Desktop';
+
+// Add linting function
+const createLinter = (fileName) => {
+    const ext = fileName.toLowerCase().split('.').pop();
+    
+    return linter(async (view) => {
+        const content = view.state.doc.toString();
+        const diagnostics = [];
+        
+        try {
+            if (ext === 'json') {
+                jsonlint.parse(content);
+            } else if (ext === 'yaml' || ext === 'yml') {
+                await yamlLint.lint(content);
+            }
+        } catch (error) {
+            diagnostics.push({
+                from: 0,
+                to: content.length,
+                severity: 'error',
+                message: error.message
+            });
+        }
+        
+        return diagnostics;
+    });
+};
+
+const getFileLanguage = (fileName) => {
+    const ext = fileName.toLowerCase().split('.').pop();
+    switch (ext) {
+        case 'json':
+            return json();
+        case 'yaml':
+        case 'yml':
+            return yaml();
+        case 'xml':
+            return xml();
+        case 'html':
+        case 'htm':
+            return html();
+        case 'css':
+            return css();
+        case 'js':
+        case 'jsx':
+        case 'ts':
+        case 'tsx':
+            return javascript();
+        case 'php':
+            return php();
+        case 'py':
+            return python();
+        case 'sql':
+            return sql();
+        case 'md':
+        case 'markdown':
+            return markdown();
+        default:
+            return null;
+    }
+};
 
 function App() {
     const classes = useStyles();
@@ -1803,6 +1901,35 @@ function App() {
         setSearchExpanded(false);
     }, [currentPath]);
 
+    // Mouse position tracking function
+    const handleMouseMove = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Find tooltip element and update its position
+        const tooltip = document.querySelector('.cm-tooltip-hover');
+        if (tooltip) {
+            // First make it visible
+            tooltip.classList.add('visible');
+            
+            // Then update position in next frame
+            requestAnimationFrame(() => {
+                tooltip.style.left = `${x - (tooltip.offsetWidth / 2)}px`;
+                tooltip.style.top = `${y - 40}px`;
+            });
+        }
+        
+        // Hide tooltip when mouse leaves the element
+        const handleMouseLeave = () => {
+            if (tooltip) {
+                tooltip.classList.remove('visible');
+            }
+        };
+        
+        e.currentTarget.addEventListener('mouseleave', handleMouseLeave, { once: true });
+    };
+
     return (
         <>
             <Container className={classes.root} maxWidth="xl">
@@ -2324,33 +2451,46 @@ function App() {
                             </div>
                         </Toolbar>
                     </AppBar>
-                    <Container style={{
-                        backgroundColor: '#0d1117',
-                        height: '100%',
-                        paddingTop: window.innerWidth <= 600 ? '8px' : '24px'
-                    }}>
-                        <TextField
-                            className={classes.editor}
-                            multiline
-                            rows={20}
-                            variant="outlined"
+                    <div className={classes.editorContainer}>
+                        <CodeMirror
                             value={fileContent}
-                            onChange={(e) => setFileContent(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Tab') {
-                                    e.preventDefault();
-                                    const start = e.target.selectionStart;
-                                    const end = e.target.selectionEnd;
-                                    const newContent = fileContent.substring(0, start) + '\t' + fileContent.substring(end);
-                                    setFileContent(newContent);
-                                    
-                                    setTimeout(() => {
-                                        e.target.selectionStart = e.target.selectionEnd = start + 1;
-                                    }, 0);
-                                }
+                            height="100%"
+                            theme={oneDark}
+                            onChange={(value) => setFileContent(value)}
+                            onMouseMove={handleMouseMove}
+                            extensions={[
+                                getFileLanguage(selectedFile?.name || '') || [],
+                                lintGutter(),
+                                createLinter(selectedFile?.name || '')
+                            ].filter(Boolean)}
+                            className={classes.editor}
+                            basicSetup={{
+                                lineNumbers: true,
+                                highlightActiveLineGutter: true,
+                                highlightSpecialChars: true,
+                                history: true,
+                                foldGutter: true,
+                                drawSelection: true,
+                                dropCursor: true,
+                                allowMultipleSelections: true,
+                                indentOnInput: true,
+                                bracketMatching: true,
+                                closeBrackets: true,
+                                autocompletion: true,
+                                rectangularSelection: true,
+                                crosshairCursor: true,
+                                highlightActiveLine: true,
+                                highlightSelectionMatches: true,
+                                closeBracketsKeymap: true,
+                                defaultKeymap: true,
+                                searchKeymap: true,
+                                historyKeymap: true,
+                                foldKeymap: true,
+                                completionKeymap: true,
+                                lintKeymap: true,
                             }}
                         />
-                    </Container>
+                    </div>
                 </Dialog>
 
                 <Snackbar
