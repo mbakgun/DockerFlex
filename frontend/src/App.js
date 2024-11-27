@@ -53,7 +53,6 @@ import {
     Clear as ClearIcon,
 } from '@material-ui/icons';
 import MuiAlert from '@material-ui/lab/Alert';
-import { createMuiTheme } from '@material-ui/core/styles';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import NoteAddIcon from '@material-ui/icons/NoteAdd';
@@ -72,58 +71,12 @@ import { html } from '@codemirror/lang-html';
 import { linter, lintGutter } from "@codemirror/lint";
 import jsonlint from 'jsonlint-mod';
 import yamlLint from 'yaml-lint';
+import { StreamLanguage } from '@codemirror/language';
+import { shell } from '@codemirror/legacy-modes/mode/shell';
+import { go } from '@codemirror/lang-go';
+import { nginx } from '@codemirror/legacy-modes/mode/nginx';
+import { toml } from '@codemirror/legacy-modes/mode/toml';
 
-const theme = createMuiTheme({
-    palette: {
-        type: 'dark',
-        primary: {
-            main: '#6366f1',
-            light: '#818cf8',
-            dark: '#4f46e5',
-        },
-        secondary: {
-            main: '#ec4899',
-            light: '#f472b6',
-            dark: '#db2777',
-        },
-        background: {
-            default: '#0d1117',
-            paper: '#161b22',
-        },
-        text: {
-            primary: '#e6edf3',
-            secondary: '#8b949e',
-        },
-    },
-    overrides: {
-        MuiTooltip: {
-            tooltip: {
-                backgroundColor: '#21262d',
-                color: '#e6edf3',
-                fontSize: '0.875rem',
-                border: '1px solid #30363d',
-            },
-            arrow: {
-                color: '#21262d',
-            },
-        },
-        MuiCard: {
-            root: {
-                backgroundColor: '#161b22',
-                border: '1px solid #30363d',
-            },
-        },
-        MuiPaper: {
-            root: {
-                backgroundColor: '#161b22',
-                '&.MuiMenu-paper': {
-                    backgroundColor: '#21262d',
-                    border: '1px solid #30363d',
-                },
-            },
-        },
-    },
-});
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -806,7 +759,6 @@ const cleanFileName = (fileName) => {
 
 // Use environment variables for API URLs
 const INTERNAL_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4200';
-const HOSTNAME = import.meta.env.VITE_HOSTNAME || 'Docker Desktop';
 
 // Add linting function
 const createLinter = (fileName) => {
@@ -837,6 +789,7 @@ const createLinter = (fileName) => {
 
 const getFileLanguage = (fileName) => {
     const ext = fileName.toLowerCase().split('.').pop();
+
     switch (ext) {
         case 'json':
             return json();
@@ -864,6 +817,15 @@ const getFileLanguage = (fileName) => {
         case 'md':
         case 'markdown':
             return markdown();
+        case 'sh':
+        case 'bash':
+            return StreamLanguage.define(shell);
+        case 'go':
+            return go();
+        case 'conf':
+            return StreamLanguage.define(nginx);
+        case 'toml':
+            return StreamLanguage.define(toml);
         default:
             return null;
     }
@@ -1335,55 +1297,8 @@ function App() {
         });
     };
 
-    const handleDragEnter = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!isDragging) setIsDragging(true);
-    };
 
-    const handleDragLeave = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const rect = e.currentTarget.getBoundingClientRect();
-        const { clientX: x, clientY: y } = e;
 
-        // Only set dragging to false if we've actually left the drop zone
-        if (
-            x <= rect.left ||
-            x >= rect.right ||
-            y <= rect.top ||
-            y >= rect.bottom
-        ) {
-            setIsDragging(false);
-        }
-    };
-
-    const handleDrop = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        // Get files from DataTransfer
-        const items = Array.from(e.dataTransfer.items);
-
-        // Only accept files, reject folders
-        const filePromises = items
-            .filter(item => item.kind === 'file' && item.webkitGetAsEntry()?.isFile)
-            .map(item => item.getAsFile());
-
-        if (filePromises.length === 0) {
-            // Show warning if a folder is dragged
-            showErrorMessage('Please use the folder selection button to upload folders');
-            return;
-        }
-
-        // Send files to handleFileSelect
-        handleFileSelect({
-            target: {
-                files: filePromises
-            }
-        });
-    };
 
     // Recursively get all files from a directory
     const getAllFilesFromDirectory = async (dirEntry, basePath = '') => {
