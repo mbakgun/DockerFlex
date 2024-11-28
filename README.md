@@ -21,6 +21,10 @@
   <a href="#-contributing">Contributing</a>
 </p>
 
+<div align="left">
+  <img src="assets/first.gif" alt="DockerFlex File Management" width="800"/>
+</div>
+
 ## 🚀 Overview
 
 DockerFlex is a modern web-based application that simplifies Docker container file management. Whether you're a developer, DevOps engineer, or system administrator, DockerFlex provides an intuitive interface for managing container files without the complexity of traditional tools.
@@ -45,6 +49,15 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Edit files directly in the browser
   - Delete files and folders
   - Create new files and directories
+
+
+---
+
+<div align="left">
+  <img src="assets/second.gif" alt="DockerFlex File Management" width="800"/>
+</div>
+
+---
 
 ## 🤝 Contributing
 
@@ -87,6 +100,10 @@ Recently Added Features:
 • [✓] Cross-browser compatibility
 
 • [✓] Integrated search toolbar
+
+<div align="left">
+  <img src="assets/third.gif" alt="DockerFlex File Management" width="800"/>
+</div>
 
 ## 📝 License
 
