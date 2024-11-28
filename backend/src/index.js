@@ -1152,4 +1152,64 @@ app.post('/api/containers/:id/restart', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// Add copy endpoint
+app.post('/api/containers/:id/copy', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { sourcePath, targetPath, isDirectory } = req.body;
+        const container = docker.getContainer(id);
+
+        // Get target directory path
+        const targetDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
+
+        // First ensure parent directory is writable with elevated privileges
+        await executeCommandWithPrivileges(container, `
+            mkdir -p "${targetDir}" &&
+            chmod -R 777 "${targetDir}"
+        `);
+
+        if (isDirectory) {
+            // For directories, use cp -a to preserve permissions and ownership
+            await executeCommandWithPrivileges(container, `
+                if [ -d "${targetPath}" ]; then
+                    rm -rf "${targetPath}"
+                fi &&
+                cp -a "${sourcePath}" "${targetPath}" &&
+                chmod -R 777 "${targetPath}"
+            `);
+        } else {
+            // For files, use cp with explicit permissions
+            await executeCommandWithPrivileges(container, `
+                cp "${sourcePath}" "${targetPath}" &&
+                chmod 666 "${targetPath}"
+            `);
+        }
+
+        // Verify the copy operation with more detailed output
+        const verifyOutput = await executeCommandWithPrivileges(container, `
+            if [ -e "${targetPath}" ]; then
+                echo "SUCCESS: $(ls -l "${targetPath}")"
+            else
+                echo "FAILED: Target path does not exist"
+                exit 1
+            fi
+        `);
+        
+        if (!verifyOutput.includes('SUCCESS')) {
+            throw new Error(`Verification failed: ${verifyOutput}`);
+        }
+
+        res.json({ 
+            message: 'Item copied successfully',
+            details: verifyOutput
+        });
+    } catch (error) {
+        console.error('Copy error:', error);
+        res.status(403).json({
+            error: 'Failed to copy',
+            details: error.message || 'Unable to copy. The location might be read-only or system protected.'
+        });
+    }
 }); 

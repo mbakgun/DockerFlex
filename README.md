@@ -55,6 +55,12 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 5. Create a Pull Request
 
 ## ✍️ Version History
+### v1.0.0 (2024)
+Initial release of DockerFlex with comprehensive Docker container file management capabilities and an intuitive web interface. This version introduces core features including real-time container monitoring, drag-and-drop file operations, and in-browser file editing with syntax highlighting.
+
+Recently Added Features:
+
+• [✓] File/Folder copy operation
 
 • [✓] Syntax highlighting for [JavaScript/TypeScript, Python, PHP, SQL, HTML/CSS, XML, YAML/YML, JSON, Markdown, Shell/Bash, Go, NGINX Config, TOML]
 

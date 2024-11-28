@@ -51,6 +51,7 @@ import {
     GitHub as GitHubIcon,
     Search as SearchIcon,
     Clear as ClearIcon,
+    FileCopy as FileCopyIcon,
 } from '@material-ui/icons';
 import MuiAlert from '@material-ui/lab/Alert';
 import Menu from '@material-ui/core/Menu';
@@ -1845,6 +1846,50 @@ function App() {
         e.currentTarget.addEventListener('mouseleave', handleMouseLeave, { once: true });
     };
 
+    // Add copy function
+    const handleCopy = async () => {
+        if (!selectedFile) return;
+        
+        try {
+            const basePath = currentPath;
+            const sourcePath = `${basePath}/${selectedFile.name}`;
+            
+            // Generate target name with (copy) suffix
+            let targetName = selectedFile.name;
+            const ext = targetName.includes('.') ? `.${targetName.split('.').pop()}` : '';
+            const baseName = targetName.includes('.') ? targetName.slice(0, -ext.length) : targetName;
+            
+            let copyIndex = 0;
+            let newName = `${baseName} (copy)${ext}`;
+            
+            while (files.some(f => f.name === newName)) {
+                copyIndex++;
+                newName = `${baseName} (copy-${copyIndex})${ext}`;
+            }
+            
+            const targetPath = `${basePath}/${newName}`;
+            
+            await axios.post(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/copy`, {
+                sourcePath,
+                targetPath,
+                isDirectory: selectedFile.type === 'directory'
+            });
+            
+            // Refresh file list with current container and path
+            await fetchFiles(selectedContainer.Id, currentPath);
+            
+            // Deselect the file after copying
+            setSelectedFile(null);
+            
+            setMessageType('success');
+            setErrorMessage(`Successfully copied ${selectedFile.name}`);
+            setShowError(true);
+        } catch (error) {
+            console.error('Copy error:', error);
+            setError(error.response?.data?.error || 'Failed to copy item');
+        }
+    };
+
     return (
         <>
             <Container className={classes.root} maxWidth="xl">
@@ -2133,6 +2178,19 @@ function App() {
                                             </IconButton>
                                         </span>
                                     </Tooltip>
+
+                                    <Tooltip title="Copy Selected" arrow>
+                                        <span style={{ margin: '0 2px' }}>
+                                            <IconButton
+                                                size="small"
+                                                color="inherit"
+                                                disabled={!selectedFile}
+                                                onClick={handleCopy}
+                                            >
+                                                <FileCopyIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
                                 </div>
 
                                 {/* Vertical Divider */}
@@ -2269,6 +2327,18 @@ function App() {
                                                 <Delete />
                                             </ListItemIcon>
                                             <ListItemText primary="Delete" />
+                                        </MenuItem>
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleCopy();
+                                                handleMobileMenuClose();
+                                            }}
+                                            className={classes.mobileMenuItem}
+                                        >
+                                            <ListItemIcon>
+                                                <FileCopyIcon />
+                                            </ListItemIcon>
+                                            <ListItemText primary="Copy" />
                                         </MenuItem>
                                     </>
                                 )}
