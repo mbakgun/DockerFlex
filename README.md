@@ -73,33 +73,27 @@ Initial release of DockerFlex with comprehensive Docker container file managemen
 
 Recently Added Features:
 
-• [✓] File/Folder copy operation
-
-• [✓] Syntax highlighting for [JavaScript/TypeScript, Python, PHP, SQL, HTML/CSS, XML, YAML/YML, JSON, Markdown, Shell/Bash, Go, NGINX Config, TOML]
-
-• [✓] Real-time code linting for JSON and YAML
-
-• [✓] Line numbers and active line highlighting
-
-• [✓] Custom theme optimized for dark mode
-
-• [✓] Container restart option on file save
-
-• [✓] File/Folder selection with keyboard navigation
-
-• [✓] Tab indentation support
-
-• [✓] Mobile-friendly interface
-
-• [✓] Drag and drop file editing
-
-• [✓] File size optimization
-
-• [✓] Responsive layout adaptation
-
-• [✓] Cross-browser compatibility
-
-• [✓] Integrated search toolbar
+ [✓] File/Folder copy operation
+ 
+ [✓] Syntax highlighting for **[JavaScript/TypeScript, Python, PHP, SQL, HTML/CSS, XML, YAML/YML, JSON, Markdown, Shell/Bash, Go, NGINX Config, TOML]**
+ 
+ [✓] Real-time code linting for JSON and YAML
+ 
+ [✓] Line numbers and active line highlighting
+ 
+ [✓] Custom theme optimized for dark mode
+ 
+ [✓] Container restart option on file save
+ 
+ [✓] File/Folder selection with keyboard navigation
+ 
+ [✓] Tab indentation support
+ 
+ [✓] Mobile-friendly interface
+ 
+ [✓] Drag and drop file editing
+   
+ [✓] Integrated search toolbar
 
 <div align="left">
   <img src="assets/third.gif" alt="DockerFlex File Management" width="800"/>
