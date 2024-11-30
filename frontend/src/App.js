@@ -28,6 +28,7 @@ import {
     Typography,
     FormControlLabel,
     Checkbox,
+    CircularProgress,
 } from '@material-ui/core';
 import {
     Add as AddIcon,
@@ -744,6 +745,25 @@ const useStyles = makeStyles((theme) => ({
             marginLeft: '4px',
         },
     },
+    saveButtonProgress: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        marginTop: -12,
+        marginLeft: -12,
+        color: '#ffffff !important', // Make sure progress is white
+    },
+    saveButtonWrapper: {
+        position: 'relative',
+        marginRight: '8px',
+        '& .MuiButton-root.Mui-disabled': {
+            backgroundColor: '#f0883e',
+            opacity: 0.8,
+        }
+    },
+    saveButtonContent: {
+        visibility: props => props.saving ? 'hidden' : 'visible',
+    }
 }));
 
 function Alert(props) {
@@ -833,7 +853,6 @@ const getFileLanguage = (fileName) => {
 };
 
 function App() {
-    const classes = useStyles();
     const [containers, setContainers] = useState([]);
     const [selectedContainer, setSelectedContainer] = useState(() => {
         const saved = localStorage.getItem('selectedContainer');
@@ -879,6 +898,8 @@ function App() {
     const [searchExpanded, setSearchExpanded] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileSearchDialog, setMobileSearchDialog] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const classes = useStyles({ saving }); // Pass the actual saving state instead of hardcoded false
 
     useEffect(() => {
         fetchContainers();
@@ -1158,6 +1179,7 @@ function App() {
     };
 
     const handleSaveFile = async () => {
+        setSaving(true);
         try {
             const response = await axios.put(
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files`,
@@ -1179,9 +1201,6 @@ function App() {
                     window.location.reload();
                 }, 2000);
             } else {
-                // Close editor
-                handleCloseEditor();
-
                 // Refresh file list to get updated sizes
                 await fetchFiles(selectedContainer.Id, currentPath);
 
@@ -1192,10 +1211,17 @@ function App() {
                         size: response.data.size
                     }));
                 }
+                
+                // Close editor after a small delay to show loading state
+                setTimeout(() => {
+                    handleCloseEditor();
+                    setSaving(false);
+                }, 500);
             }
         } catch (error) {
             const errorMessage = error.response?.data?.details || error.message;
             showErrorMessage('Error saving file: ' + errorMessage);
+            setSaving(false);
         }
     };
 
@@ -2414,18 +2440,26 @@ function App() {
                                     label="Restart container on save"
                                     className={classes.restartCheckbox}
                                 />
-                                <Button
-                                    onClick={handleSaveFile}
-                                    startIcon={<SaveIcon />}
-                                    style={{
-                                        backgroundColor: '#f0883e',
-                                        color: '#ffffff',
-                                        marginRight: '8px',
-                                    }}
-                                    variant="contained"
-                                >
-                                    <span>Save</span>
-                                </Button>
+                                <div className={classes.saveButtonWrapper}>
+                                    <Button
+                                        onClick={handleSaveFile}
+                                        startIcon={!saving && <SaveIcon />} // Only show icon when not saving
+                                        style={{
+                                            backgroundColor: '#f0883e',
+                                            color: '#ffffff',
+                                        }}
+                                        variant="contained"
+                                        disabled={saving}
+                                    >
+                                        <span className={classes.saveButtonContent}>Save</span>
+                                    </Button>
+                                    {saving && (
+                                        <CircularProgress
+                                            size={24}
+                                            className={classes.saveButtonProgress}
+                                        />
+                                    )}
+                                </div>
                                 <IconButton
                                     onClick={handleCloseEditor}
                                     style={{ color: '#e6edf3' }}
