@@ -7,7 +7,7 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "express": "^4.21.1",
+    "express": "^4.21.2",
     "cors": "^2.8.5",
     "dockerode": "^4.0.2",
     "multer": "^1.4.5-lts.1",
