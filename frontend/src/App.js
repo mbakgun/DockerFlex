@@ -901,6 +901,10 @@ function App() {
     const [saving, setSaving] = useState(false);
     const classes = useStyles({ saving }); // Pass the actual saving state instead of hardcoded false
 
+    // Add these state variables near the top of the App component
+    const [originalContent, setOriginalContent] = useState('');
+    const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
     useEffect(() => {
         fetchContainers();
     }, []);
@@ -1003,6 +1007,34 @@ function App() {
         };
     }, [openDialog, openEditor, isRenaming, files, searchTimeout, classes.selectedItem, classes.fileList]);
 
+    // Add effect to handle keyboard events
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Only handle keyboard events when dialog is open and editor is not open
+            if (!openDialog || openEditor) return;
+
+            // Handle Enter key for selected file
+            if (e.key === 'Enter' && selectedFile) {
+                handleFileDoubleClick(selectedFile);
+            }
+
+            // Handle Backspace key for navigation
+            if (e.key === 'Backspace' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                // Programmatically click the back button
+                document.querySelector(`.${classes.backButton}`)?.click();
+            }
+        };
+
+        // Add event listener
+        window.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [openDialog, openEditor, selectedFile, classes.backButton]); // Added classes.backButton to dependencies
+
     const fetchContainers = async () => {
         try {
             const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
@@ -1100,6 +1132,7 @@ function App() {
 
                 if (response.status === 200) {
                     setFileContent(response.data);
+                    setOriginalContent(response.data); // Store original content
                     setSelectedFile(file);
                     setOpenEditor(true);
                     window.history.pushState({ type: 'editor', path: currentPath }, '');
@@ -1144,8 +1177,18 @@ function App() {
     };
 
     const handleCloseEditor = () => {
+        if (hasUnsavedChanges()) {
+            setShowUnsavedDialog(true);
+        } else {
+            closeEditorWithoutSaving();
+        }
+    };
+
+    const closeEditorWithoutSaving = () => {
         setOpenEditor(false);
         setFileContent('');
+        setOriginalContent('');
+        setShowUnsavedDialog(false);
     };
 
     const handleDownload = async () => {
@@ -1193,6 +1236,9 @@ function App() {
             // Show success message
             showSuccessMessage('File saved successfully');
 
+            // Update originalContent to match current content after successful save
+            setOriginalContent(fileContent);
+
             // If file was saved and container was restarted
             if (response.data.restarted) {
                 showSuccessMessage('Container restarted successfully');
@@ -1212,9 +1258,8 @@ function App() {
                     }));
                 }
                 
-                // Close editor after a small delay to show loading state
+                // Just stop loading state after a delay
                 setTimeout(() => {
-                    handleCloseEditor();
                     setSaving(false);
                 }, 500);
             }
@@ -1916,6 +1961,24 @@ function App() {
         }
     };
 
+    // Add a function to check if content has changed
+    const hasUnsavedChanges = () => {
+        return fileContent !== originalContent;
+    };
+
+    // Add effect to handle ESC key
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && openEditor) {
+                e.preventDefault();
+                handleCloseEditor();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [openEditor, fileContent, originalContent]);
+
     return (
         <>
             <Container className={classes.root} maxWidth="xl">
@@ -2034,7 +2097,7 @@ function App() {
                     >
                         <Toolbar className={classes.toolbar}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <Tooltip title="Go Back" arrow>
+                                <Tooltip title="Go Back (Backspace)" arrow>
                                     <IconButton
                                         color="inherit"
                                         onClick={handleBack}
@@ -2443,7 +2506,7 @@ function App() {
                                 <div className={classes.saveButtonWrapper}>
                                     <Button
                                         onClick={handleSaveFile}
-                                        startIcon={!saving && <SaveIcon />} // Only show icon when not saving
+                                        startIcon={!saving && <SaveIcon />}
                                         style={{
                                             backgroundColor: '#f0883e',
                                             color: '#ffffff',
@@ -2451,7 +2514,9 @@ function App() {
                                         variant="contained"
                                         disabled={saving}
                                     >
-                                        <span className={classes.saveButtonContent}>Save</span>
+                                        <span className={classes.saveButtonContent}>
+                                            Save{hasUnsavedChanges() ? ' *' : ''}
+                                        </span>
                                     </Button>
                                     {saving && (
                                         <CircularProgress
@@ -2460,13 +2525,15 @@ function App() {
                                         />
                                     )}
                                 </div>
-                                <IconButton
-                                    onClick={handleCloseEditor}
-                                    style={{ color: '#e6edf3' }}
-                                    edge="end"
-                                >
-                                    <CloseIcon />
-                                </IconButton>
+                                <Tooltip title="Close (ESC)" arrow>
+                                    <IconButton
+                                        onClick={handleCloseEditor}
+                                        style={{ color: '#e6edf3' }}
+                                        edge="end"
+                                    >
+                                        <CloseIcon />
+                                    </IconButton>
+                                </Tooltip>
                             </div>
                         </Toolbar>
                     </AppBar>
@@ -2658,6 +2725,34 @@ function App() {
                             }}
                         />
                     </DialogContent>
+                </Dialog>
+
+                <Dialog
+                    open={showUnsavedDialog}
+                    onClose={() => setShowUnsavedDialog(false)}
+                    className={classes.newItemDialog}
+                >
+                    <DialogTitle>Unsaved Changes</DialogTitle>
+                    <DialogContent>
+                        <Typography>
+                            You have unsaved changes. Are you sure you want to close the editor?
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions style={{ borderTop: '1px solid #30363d', padding: '16px' }}>
+                        <Button 
+                            onClick={() => setShowUnsavedDialog(false)} 
+                            style={{ color: '#8b949e' }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={closeEditorWithoutSaving}
+                            className={classes.saveButton}
+                            variant="contained"
+                        >
+                            Close Without Saving
+                        </Button>
+                    </DialogActions>
                 </Dialog>
             </Container>
         </>
