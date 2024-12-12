@@ -123,6 +123,14 @@ const useStyles = makeStyles((theme) => ({
             wordBreak: 'break-word',
         },
     },
+    version: {
+        fontSize: '0.9rem',
+        opacity: 0.7,
+        marginLeft: theme.spacing(1),
+        [theme.breakpoints.down('sm')]: {
+            fontSize: '0.75rem',
+        },
+    },
     githubButton: {
         color: '#e6edf3',
         transition: 'transform 0.2s, color 0.2s',
@@ -2022,17 +2030,17 @@ function App() {
             <Container className={classes.root} maxWidth="xl">
                 <Box className={classes.headerContainer}>
                     <Grow in timeout={1000}>
-                        <Typography variant="h3" component="h1" className={classes.title}>
+                        <Typography variant="h4" className={classes.title}>
                             DockerFlex
-                            <IconButton
-                                href="https://github.com/mbakgun/dockerflex"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={classes.githubButton}
-                                aria-label="GitHub Repository"
-                            >
-                                <GitHubIcon />
-                            </IconButton>
+                            <span className={classes.version}>v1.0.1</span>
+                            <Tooltip title="View on GitHub" arrow>
+                                <IconButton
+                                    className={classes.githubButton}
+                                    onClick={() => window.open('https://github.com/mbakgun/dockerflex', '_blank')}
+                                >
+                                    <GitHubIcon />
+                                </IconButton>
+                            </Tooltip>
                         </Typography>
                     </Grow>
 
