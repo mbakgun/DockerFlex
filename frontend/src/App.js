@@ -1078,6 +1078,21 @@ function App() {
 
     const fetchFiles = async (containerId, path) => {
         try {
+            // First verify container exists and matches
+            const containersResponse = await axios.get(`${INTERNAL_API_URL}/api/containers`);
+            const containerExists = containersResponse.data.some(c => c.Id === containerId);
+            
+            if (!containerExists) {
+                // Container no longer exists or was recreated
+                localStorage.removeItem('currentPath');
+                localStorage.removeItem('selectedContainer');
+                setCurrentPath('/');
+                setSelectedContainer(null);
+                setOpenDialog(false);
+                setFiles([]);
+                throw new Error('Container no longer exists or was recreated');
+            }
+
             const response = await axios.get(`${INTERNAL_API_URL}/api/containers/${containerId}/files`, {
                 params: { path }
             });
@@ -1090,6 +1105,9 @@ function App() {
             setFiles(filteredFiles);
         } catch (error) {
             console.error('Error fetching files:', error);
+            if (error.message === 'Container no longer exists or was recreated') {
+                showErrorMessage('Container no longer exists or was recreated. Please select a container again.');
+            }
         }
     };
 
@@ -1102,6 +1120,9 @@ function App() {
     };
 
     const handleFileDoubleClick = async (file) => {
+        // If currently renaming, ignore double clicks
+        if (isRenaming) return;
+
         if (file.type === 'directory') {
             setSelectedFile(null);
             const newPath = currentPath === '/'
@@ -1715,6 +1736,15 @@ function App() {
         const loadInitialState = async () => {
             if (selectedContainer) {
                 try {
+                    // First verify if the container still exists and matches
+                    const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
+                    const currentContainer = response.data.find(c => c.Id === selectedContainer.Id);
+                    
+                    if (!currentContainer) {
+                        // Container no longer exists or ID changed
+                        throw new Error('Container not found or recreated');
+                    }
+
                     await fetchFiles(selectedContainer.Id, currentPath);
                     setOpenDialog(true);
                 } catch (error) {
@@ -1724,6 +1754,11 @@ function App() {
                     localStorage.removeItem('selectedContainer');
                     setCurrentPath('/');
                     setSelectedContainer(null);
+                    setOpenDialog(false);
+                    setFiles([]);
+                    
+                    // Show error message to user
+                    showErrorMessage('Container no longer exists or was recreated. Please select a container again.');
                 }
             }
         };
@@ -1828,6 +1863,9 @@ function App() {
 
     // Update the handleListItemClick function
     const handleListItemClick = (file) => {
+        // If currently renaming, ignore clicks
+        if (isRenaming) return;
+
         const currentTime = new Date().getTime();
         const timeDiff = currentTime - lastClickTime;
 
@@ -2447,8 +2485,10 @@ function App() {
                                     <TextField
                                         value={newFileName}
                                         onChange={(e) => setNewFileName(cleanFileName(e.target.value))}
-                                        onKeyPress={(e) => {
+                                        onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
+                                                e.preventDefault(); // Prevent the event from bubbling up
+                                                e.stopPropagation(); // Stop propagation to parent elements
                                                 handleRename();
                                             }
                                         }}
@@ -2459,6 +2499,10 @@ function App() {
                                         className={classes.renameTextField}
                                         InputProps={{
                                             style: { color: '#ffffff' }
+                                        }}
+                                        onClick={(e) => {
+                                            e.preventDefault(); // Prevent click from reaching the ListItem
+                                            e.stopPropagation(); // Stop event propagation
                                         }}
                                     />
                                 ) : (
