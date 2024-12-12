@@ -411,23 +411,66 @@ const executeCommandWithPrivileges = async (container, command, options = {}) =>
 // Update rename endpoint
 app.put('/api/containers/:id/files/rename', async (req, res) => {
     try {
-        const container = docker.getContainer(req.params.id);
+        const container = docker.getContainer(id);
         const {oldPath, newPath} = req.body;
 
         // First ensure parent directory is writable
         const parentDir = newPath.substring(0, newPath.lastIndexOf('/'));
-        await executeCommandWithPrivileges(container, `
-            mkdir -p "${parentDir}" &&
-            chmod 777 "${parentDir}" &&
-            chown -R root:root "${parentDir}"
-        `);
+        const verifyCmd = `
+            if [ -d "${parentDir}" ]; then
+                chmod -R 777 "${parentDir}" 2>/dev/null || true
+                chmod -R 777 "${oldPath}" 2>/dev/null || true
+                echo "SUCCESS: Permissions set"
+            else
+                echo "FAILED: Parent directory does not exist"
+                exit 1
+            fi
+        `;
+
+        const verifyExec = await execCommand(container, verifyCmd, {
+            Privileged: true,
+            User: 'root'
+        });
+
+        const verifyStream = await verifyExec.start();
+        let verifyOutput = '';
+        
+        await new Promise((resolve, reject) => {
+            verifyStream.on('data', chunk => {
+                const buffer = Buffer.from(chunk);
+                verifyOutput += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
+            });
+            verifyStream.on('end', resolve);
+            verifyStream.on('error', reject);
+        });
+
+        if (!verifyOutput.includes('SUCCESS')) {
+            throw new Error(`Verification failed: ${verifyOutput}`);
+        }
 
         // Perform rename with elevated privileges
-        await executeCommandWithPrivileges(container, `
-            chmod -R 777 "${oldPath}" 2>/dev/null || true &&
-            mv "${oldPath}" "${newPath}" &&
-            chmod -R 777 "${newPath}" 2>/dev/null || true
-        `);
+        const moveCmd = `mv "${oldPath}" "${newPath}" 2>/dev/null && chmod -R 777 "${newPath}" 2>/dev/null && echo "SUCCESS: Rename completed"`;
+
+        const moveExec = await execCommand(container, moveCmd, {
+            Privileged: true,
+            User: 'root'
+        });
+
+        const moveStream = await moveExec.start();
+        let moveOutput = '';
+        
+        await new Promise((resolve, reject) => {
+            moveStream.on('data', chunk => {
+                const buffer = Buffer.from(chunk);
+                moveOutput += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
+            });
+            moveStream.on('end', resolve);
+            moveStream.on('error', reject);
+        });
+
+        if (!moveOutput.includes('SUCCESS')) {
+            throw new Error('Rename operation failed');
+        }
 
         res.json({
             message: 'File renamed successfully',
@@ -438,7 +481,7 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
         console.error('Error renaming:', error);
         res.status(403).json({
             error: 'Failed to rename',
-            details: 'Unable to rename. The location might be read-only or system protected.'
+            details: error.message || 'Unable to rename. The location might be read-only or system protected.'
         });
     }
 });
@@ -1245,7 +1288,8 @@ app.post('/api/containers/:id/move', async (req, res) => {
         
         await new Promise((resolve, reject) => {
             verifyStream.on('data', chunk => {
-                verifyOutput += chunk.toString();
+                const buffer = Buffer.from(chunk);
+                verifyOutput += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
             });
             verifyStream.on('end', resolve);
             verifyStream.on('error', reject);
@@ -1256,7 +1300,7 @@ app.post('/api/containers/:id/move', async (req, res) => {
         }
 
         // Move the file/directory with elevated privileges
-        const moveCmd = `mv "${sourcePath}" "${targetPath}" && chmod -R 777 "${targetPath}" 2>/dev/null || true`;
+        const moveCmd = `mv "${sourcePath}" "${targetPath}" 2>/dev/null && chmod -R 777 "${targetPath}" 2>/dev/null && echo "SUCCESS: Move completed"`;
         
         const moveExec = await execCommand(container, moveCmd, {
             Privileged: true,
@@ -1268,29 +1312,39 @@ app.post('/api/containers/:id/move', async (req, res) => {
         
         await new Promise((resolve, reject) => {
             moveStream.on('data', chunk => {
-                moveOutput += chunk.toString();
+                const buffer = Buffer.from(chunk);
+                moveOutput += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
             });
             moveStream.on('end', resolve);
             moveStream.on('error', reject);
         });
 
-        // Verify the move operation
-        const verifyMoveCmd = `test -e "${targetPath}" && echo "SUCCESS: Move verified"`;
+        if (!moveOutput.includes('SUCCESS')) {
+            throw new Error('Move operation failed');
+        }
+
+        // Final verification
+        const verifyFinalCmd = `test -e "${targetPath}" && echo "SUCCESS: Final verification passed"`;
         
-        const verifyMoveExec = await execCommand(container, verifyMoveCmd);
-        const verifyMoveStream = await verifyMoveExec.start();
-        let verifyMoveOutput = '';
+        const verifyFinalExec = await execCommand(container, verifyFinalCmd, {
+            Privileged: true,
+            User: 'root'
+        });
+        
+        const verifyFinalStream = await verifyFinalExec.start();
+        let verifyFinalOutput = '';
         
         await new Promise((resolve, reject) => {
-            verifyMoveStream.on('data', chunk => {
-                verifyMoveOutput += chunk.toString();
+            verifyFinalStream.on('data', chunk => {
+                const buffer = Buffer.from(chunk);
+                verifyFinalOutput += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
             });
-            verifyMoveStream.on('end', resolve);
-            verifyMoveStream.on('error', reject);
+            verifyFinalStream.on('end', resolve);
+            verifyFinalStream.on('error', reject);
         });
 
-        if (!verifyMoveOutput.includes('SUCCESS')) {
-            throw new Error('Move operation could not be verified');
+        if (!verifyFinalOutput.includes('SUCCESS')) {
+            throw new Error('Final verification failed');
         }
 
         res.json({ message: 'Item moved successfully' });
@@ -1302,3 +1356,44 @@ app.post('/api/containers/:id/move', async (req, res) => {
         });
     }
 }); 
+
+// Add new endpoint for creating files with content
+app.post('/api/containers/:id/create-file', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { path, content } = req.body;
+        const container = docker.getContainer(id);
+
+        // First ensure parent directory exists and is writable
+        const parentDir = path.substring(0, path.lastIndexOf('/'));
+        await executeCommandWithPrivileges(container, `
+            mkdir -p "${parentDir}" &&
+            chmod 777 "${parentDir}"
+        `);
+
+        // Write file content
+        const writeCmd = `cat > "${path}" << 'EOF'
+${content}
+EOF`;
+
+        await executeCommandWithPrivileges(container, writeCmd);
+
+        // Verify file was created and set permissions
+        await executeCommandWithPrivileges(container, `
+            test -f "${path}" &&
+            chmod 666 "${path}" &&
+            echo "SUCCESS"
+        `);
+
+        res.json({
+            message: 'File created successfully',
+            path: path
+        });
+    } catch (error) {
+        console.error('Error creating file:', error);
+        res.status(403).json({
+            error: 'Failed to create file',
+            details: error.message || 'Unable to create file. The location might be read-only or system protected.'
+        });
+    }
+});

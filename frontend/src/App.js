@@ -816,7 +816,7 @@ function Alert(props) {
 // Helper function to clean file names
 const cleanFileName = (fileName) => {
     return fileName
-        .replace(/[^\w\s.-]/g, '') // Sadece alfanumerik, boşluk, nokta ve tire karakterlerine izin ver
+        .replace(/[^a-zA-Z0-9\s._-]/g, '') // Sadece alfanumerik, boşluk, nokta, alt çizgi ve tire karakterlerine izin ver
         .replace(/\s+/g, ' ')      // Birden fazla boşluğu tek boşluğa çevir
         .trim();                   // Baştaki ve sondaki boşlukları temizle
 };
@@ -1370,32 +1370,30 @@ function App() {
 
     const handleRenameClick = () => {
         if (selectedFile) {
-            setNewFileName(selectedFile.name);
+            setNewFileName(selectedFile.name);  // Orijinal ismi olduğu gibi kullan
             setIsRenaming(true);
         }
     };
 
     const handleRename = async () => {
-        if (!selectedFile || !newFileName || newFileName === selectedFile.name) {
-            setIsRenaming(false);
-            return;
-        }
-
+        if (!selectedFile || !newFileName) return;
+        
         try {
-            const oldPath = `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${selectedFile.name}`;
-            const newPath = `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${newFileName}`;
+            // Don't clean filename here, send it as is
+            const oldPath = `${currentPath}/${selectedFile.name}`;
+            const newPath = `${currentPath}/${newFileName}`;
 
-            await axios.put(
-                `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files/rename`,
-                { oldPath, newPath }
-            );
+            await axios.put(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files/rename`, {
+                oldPath,
+                newPath
+            });
 
-            setIsRenaming(false);
-            setNewFileName('');
             await fetchFiles(selectedContainer.Id, currentPath);
             setSelectedFile(null);
+            setIsRenaming(false);
+            showSuccessMessage('File renamed successfully');
         } catch (error) {
-            console.error('Error renaming file:', error);
+            showErrorMessage('Error renaming file: ' + (error.response?.data?.error || error.message));
         }
     };
 
@@ -1872,33 +1870,32 @@ function App() {
     };
 
     const handleNewItemCreate = async () => {
-        if (!newItemName) return;
-
         try {
-            const newPath = `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${newItemName}`;
+            const cleanedName = cleanFileName(newItemName);
+            if (!cleanedName) {
+                showErrorMessage('Please enter a valid name');
+                return;
+            }
 
             if (newItemType === 'folder') {
-                // Use the new endpoint for folder creation
                 await axios.post(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/create-folder`, {
-                    path: newPath
-                }, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    path: `${currentPath}/${cleanedName}`
                 });
             } else {
-                await axios.put(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/files`, {
-                    path: newPath,
+                // Use the new endpoint for file creation
+                await axios.post(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/create-file`, {
+                    path: `${currentPath}/${cleanedName}`,
                     content: newFileContent
                 });
             }
 
+            await fetchFiles(selectedContainer.Id, currentPath);
             setNewItemDialog(false);
-            fetchFiles(selectedContainer.Id, currentPath);
+            setNewItemName('');
+            setNewFileContent('');
             showSuccessMessage(`${newItemType === 'folder' ? 'Folder' : 'File'} created successfully`);
         } catch (error) {
-            const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message;
-            showErrorMessage(`Error creating ${newItemType}: ${errorMessage}`);
+            showErrorMessage('Error creating ' + newItemType + ': ' + (error.response?.data?.error || error.message));
         }
     };
 
@@ -2650,26 +2647,26 @@ function App() {
                                 {isRenaming && selectedFile?.name === file.name ? (
                                     <TextField
                                         value={newFileName}
-                                        onChange={(e) => setNewFileName(cleanFileName(e.target.value))}
+                                        onChange={(e) => setNewFileName(e.target.value)}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
-                                                e.preventDefault(); // Prevent the event from bubbling up
-                                                e.stopPropagation(); // Stop propagation to parent elements
+                                                e.preventDefault();
+                                                e.stopPropagation();
                                                 handleRename();
                                             }
                                         }}
                                         onBlur={handleRename}
                                         autoFocus
-                                fullWidth
-                                className={classes.renameTextField}
-                                InputProps={{
-                                    style: { color: '#ffffff' }
-                                }}
-                                onClick={(e) => {
-                                    e.preventDefault(); // Prevent click from reaching the ListItem
-                                    e.stopPropagation(); // Stop event propagation
-                                }}
-                            />
+                                        fullWidth
+                                        className={classes.renameTextField}
+                                        InputProps={{
+                                            style: { color: '#ffffff' }
+                                        }}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                    />
                                 ) : (
                                     <>
                                         {file.type === 'directory' ? (
@@ -2862,16 +2859,10 @@ function App() {
                             type="text"
                             fullWidth
                             value={newItemName}
-                            onChange={(e) => setNewItemName(cleanFileName(e.target.value))}
+                            onChange={(e) => setNewItemName(e.target.value)}
                             className={classes.newItemTextField}
                             variant="outlined"
                             style={{ marginTop: '16px' }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && newItemName) {
-                                    e.preventDefault();
-                                    handleNewItemCreate();
-                                }
-                            }}
                         />
                         {newItemType === 'file' && (
                             <TextField
