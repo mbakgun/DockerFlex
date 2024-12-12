@@ -113,31 +113,39 @@ const useStyles = makeStyles((theme) => ({
         textAlign: 'center',
         marginBottom: theme.spacing(2),
         letterSpacing: '0.5px',
-        display: 'flex',
-        alignItems: 'center',
+        display: 'inline-grid',
+        alignItems: 'center',  // This ensures vertical centering
         justifyContent: 'center',
-        gap: theme.spacing(2),
+        gap: theme.spacing(0.75),
+        position: 'relative', // Add this
         [theme.breakpoints.down('sm')]: {
             fontSize: '1.75rem',
             padding: '0 16px',
             wordBreak: 'break-word',
         },
     },
-    version: {
-        fontSize: '0.9rem',
-        opacity: 0.7,
-        marginLeft: theme.spacing(1),
-        [theme.breakpoints.down('sm')]: {
-            fontSize: '0.75rem',
-        },
-    },
     githubButton: {
         color: '#e6edf3',
         transition: 'transform 0.2s, color 0.2s',
+        position: 'relative',
+        padding: 8,  // Add padding to make the button more compact
         '&:hover': {
             color: '#58a6ff',
             transform: 'scale(1.1)',
             backgroundColor: 'transparent',
+        },
+    },
+    version: {
+        fontSize: '0.7rem',
+        opacity: 0.7,
+        position: 'absolute',
+        bottom: '-12px',  // Reduced from -15px
+        left: '50%',
+        transform: 'translateX(-50%)',
+        whiteSpace: 'nowrap',
+        [theme.breakpoints.down('sm')]: {
+            fontSize: '0.6rem',
+            bottom: '-10px',  // Even smaller gap on mobile
         },
     },
     hostInfo: {
@@ -2032,13 +2040,13 @@ function App() {
                     <Grow in timeout={1000}>
                         <Typography variant="h4" className={classes.title}>
                             DockerFlex
-                            <span className={classes.version}>v1.0.1</span>
                             <Tooltip title="View on GitHub" arrow>
                                 <IconButton
                                     className={classes.githubButton}
                                     onClick={() => window.open('https://github.com/mbakgun/dockerflex', '_blank')}
                                 >
                                     <GitHubIcon />
+                                    <span className={classes.version}>v1.0.1</span>
                                 </IconButton>
                             </Tooltip>
                         </Typography>
