@@ -779,6 +779,33 @@ const useStyles = makeStyles((theme) => ({
     },
     saveButtonContent: {
         visibility: props => props.saving ? 'hidden' : 'visible',
+    },
+    dragOver: {
+        backgroundColor: '#1c2026 !important',
+        borderColor: '#388e3c !important',
+        '& .MuiListItemIcon-root': {
+            color: '#4caf50 !important'
+        }
+    },
+    dragging: {
+        opacity: 0.5,
+        backgroundColor: '#1c2026 !important'
+    },
+    dropToParent: {
+        backgroundColor: '#1c2026 !important',
+        borderColor: '#388e3c !important',
+        '& .MuiIconButton-root': {
+            color: '#4caf50 !important'
+        }
+    },
+    navigationArea: {
+        display: 'flex',
+        alignItems: 'center',
+        flex: 1,
+        '&.dragOver': {
+            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+            borderRadius: theme.spacing(1)
+        }
     }
 }));
 
@@ -789,9 +816,9 @@ function Alert(props) {
 // Helper function to clean file names
 const cleanFileName = (fileName) => {
     return fileName
-        .replace(/[^\w\s.-]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+        .replace(/[^\w\s.-]/g, '') // Sadece alfanumerik, boşluk, nokta ve tire karakterlerine izin ver
+        .replace(/\s+/g, ' ')      // Birden fazla boşluğu tek boşluğa çevir
+        .trim();                   // Baştaki ve sondaki boşlukları temizle
 };
 
 // Use environment variables for API URLs
@@ -920,6 +947,13 @@ function App() {
     // Add these state variables near the top of the App component
     const [originalContent, setOriginalContent] = useState('');
     const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+    // Add new state for drag operations
+    const [draggedItem, setDraggedItem] = useState(null);
+    const [dragOverItem, setDragOverItem] = useState(null);
+
+    // Yeni state ekleyelim
+    const [isParentDragOver, setIsParentDragOver] = useState(false);
 
     useEffect(() => {
         fetchContainers();
@@ -2033,6 +2067,105 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [openEditor, fileContent, originalContent]);
 
+    // Add drag handlers to ListItem component
+    const handleDragStart = (e, file) => {
+        e.dataTransfer.setData('text/plain', file.name);
+        setDraggedItem(file);
+    };
+
+    const handleDragOver = (e, file) => {
+        e.preventDefault();
+        if (file.type === 'directory' && draggedItem?.name !== file.name) {
+            setDragOverItem(file);
+        }
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        setDragOverItem(null);
+    };
+
+    const handleDrop = async (e, targetFolder) => {
+        e.preventDefault();
+        setDragOverItem(null);
+        
+        // If no item is being dragged or trying to drop into itself, just reset and return
+        if (!draggedItem || draggedItem.name === targetFolder.name) {
+            setDraggedItem(null);  // Reset draggedItem to remove transparency
+            return;
+        }
+        
+        try {
+            const sourcePath = `${currentPath}/${draggedItem.name}`;
+            const targetPath = `${currentPath}/${targetFolder.name}/${draggedItem.name}`;
+            
+            await axios.post(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/move`, {
+                sourcePath,
+                targetPath,
+                isDirectory: draggedItem.type === 'directory'
+            });
+            
+            // Refresh file list
+            await fetchFiles(selectedContainer.Id, currentPath);
+            setSelectedFile(null);
+            showSuccessMessage(`Successfully moved ${draggedItem.name} to ${targetFolder.name}`);
+        } catch (error) {
+            showErrorMessage('Error moving file: ' + (error.response?.data?.error || error.message));
+        }
+        
+        setDraggedItem(null);  // Reset draggedItem after operation (success or failure)
+    };
+
+    // Also add cleanup on drag end
+    const handleDragEnd = () => {
+        setDraggedItem(null);
+        setDragOverItem(null);
+    };
+
+    // Parent klasöre taşıma için yeni handlers
+    const handleParentDragOver = (e) => {
+        e.preventDefault();
+        if (draggedItem && currentPath !== '/') {
+            setIsParentDragOver(true);
+        }
+    };
+
+    const handleParentDragLeave = (e) => {
+        e.preventDefault();
+        setIsParentDragOver(false);
+    };
+
+    const handleParentDrop = async (e) => {
+        e.preventDefault();
+        setIsParentDragOver(false);
+
+        if (!draggedItem || currentPath === '/') {
+            setDraggedItem(null);
+            return;
+        }
+
+        try {
+            const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+            const sourcePath = `${currentPath}/${draggedItem.name}`;
+            const targetPath = `${parentPath}/${draggedItem.name}`;
+
+            await axios.post(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/move`, {
+                sourcePath,
+                targetPath,
+                isDirectory: draggedItem.type === 'directory'
+            });
+
+            // Refresh file list
+            await fetchFiles(selectedContainer.Id, currentPath);
+            setSelectedFile(null);
+            showSuccessMessage(`Successfully moved ${draggedItem.name} to parent folder`);
+        } catch (error) {
+            showErrorMessage('Error moving file: ' + (error.response?.data?.error || error.message));
+        }
+
+        setDraggedItem(null);
+    };
+
     return (
         <>
             <Container className={classes.root} maxWidth="xl">
@@ -2150,12 +2283,17 @@ function App() {
                         style={{ transition: 'none' }}
                     >
                         <Toolbar className={classes.toolbar}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <div 
+                                className={`${classes.navigationArea} ${isParentDragOver ? 'dragOver' : ''}`}
+                                onDragOver={handleParentDragOver}
+                                onDragLeave={handleParentDragLeave}
+                                onDrop={handleParentDrop}
+                            >
                                 <Tooltip title="Go Back (Backspace)" arrow>
                                     <IconButton
                                         color="inherit"
                                         onClick={handleBack}
-                                        className={classes.backButton}
+                                        className={`${classes.backButton} ${isParentDragOver ? classes.dropToParent : ''}`}
                                     >
                                         <ArrowBack />
                                     </IconButton>
@@ -2163,11 +2301,12 @@ function App() {
                                 <Typography variant="h6">
                                     {selectedContainer?.Names[0]} - Files
                                 </Typography>
-                                <Typography className={classes.breadcrumb}>
+                                <Typography 
+                                    className={classes.breadcrumb}
+                                >
                                     {currentPath}
                                 </Typography>
                             </div>
-
                             {/* Desktop Actions */}
                             <div className={classes.toolbarActions}>
                                 {/* Search Group */}
@@ -2495,7 +2634,18 @@ function App() {
                                 key={index}
                                 onClick={() => handleListItemClick(file)}
                                 onDoubleClick={() => window.innerWidth > 600 && handleFileDoubleClick(file)}
-                                className={`${selectedFile?.name === file.name ? classes.selectedItem : ''} ${classes.fileListItem}`}
+                                className={`
+                                    ${selectedFile?.name === file.name ? classes.selectedItem : ''} 
+                                    ${classes.fileListItem}
+                                    ${dragOverItem?.name === file.name ? classes.dragOver : ''}
+                                    ${draggedItem?.name === file.name ? classes.dragging : ''}
+                                `}
+                                draggable={!isRenaming}
+                                onDragStart={(e) => handleDragStart(e, file)}
+                                onDragOver={(e) => handleDragOver(e, file)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, file)}
+                                onDragEnd={handleDragEnd}
                             >
                                 {isRenaming && selectedFile?.name === file.name ? (
                                     <TextField
@@ -2510,17 +2660,16 @@ function App() {
                                         }}
                                         onBlur={handleRename}
                                         autoFocus
-                                        size="small"
-                                        fullWidth
-                                        className={classes.renameTextField}
-                                        InputProps={{
-                                            style: { color: '#ffffff' }
-                                        }}
-                                        onClick={(e) => {
-                                            e.preventDefault(); // Prevent click from reaching the ListItem
-                                            e.stopPropagation(); // Stop event propagation
-                                        }}
-                                    />
+                                fullWidth
+                                className={classes.renameTextField}
+                                InputProps={{
+                                    style: { color: '#ffffff' }
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault(); // Prevent click from reaching the ListItem
+                                    e.stopPropagation(); // Stop event propagation
+                                }}
+                            />
                                 ) : (
                                     <>
                                         {file.type === 'directory' ? (
@@ -2695,6 +2844,12 @@ function App() {
                     className={classes.newItemDialog}
                     maxWidth="sm"
                     fullWidth
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newItemName) {
+                            e.preventDefault();
+                            handleNewItemCreate();
+                        }
+                    }}
                 >
                     <DialogTitle style={{ borderBottom: '1px solid #30363d' }}>
                         {newItemType === 'folder' ? 'Create New Folder' : 'Create New File'}
@@ -2711,6 +2866,12 @@ function App() {
                             className={classes.newItemTextField}
                             variant="outlined"
                             style={{ marginTop: '16px' }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newItemName) {
+                                    e.preventDefault();
+                                    handleNewItemCreate();
+                                }
+                            }}
                         />
                         {newItemType === 'file' && (
                             <TextField
@@ -2721,18 +2882,6 @@ function App() {
                                 fullWidth
                                 value={newFileContent}
                                 onChange={(e) => setNewFileContent(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Tab') {
-                                        e.preventDefault();
-                                        const start = e.target.selectionStart;
-                                        const end = e.target.selectionEnd;
-                                        const newContent = newFileContent.substring(0, start) + '\t' + newFileContent.substring(end);
-                                        setNewFileContent(newContent);
-                                        setTimeout(() => {
-                                            e.target.selectionStart = e.target.selectionEnd = start + 1;
-                                        }, 0);
-                                    }
-                                }}
                                 className={`${classes.newItemTextField} ${classes.newItemContent}`}
                                 variant="outlined"
                                 style={{ marginTop: '16px' }}

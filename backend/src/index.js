@@ -1212,4 +1212,93 @@ app.post('/api/containers/:id/copy', async (req, res) => {
             details: error.message || 'Unable to copy. The location might be read-only or system protected.'
         });
     }
+});
+
+// Add new endpoint for moving files
+app.post('/api/containers/:id/move', async (req, res) => {
+    const { id } = req.params;
+    const { sourcePath, targetPath, isDirectory } = req.body;
+
+    try {
+        const container = docker.getContainer(id);
+        
+        // First verify target directory exists and set permissions
+        const verifyCmd = `
+            target_dir="$(dirname "${targetPath}")"
+            if [ -d "$target_dir" ]; then
+                chmod -R 777 "$target_dir" 2>/dev/null || true
+                chmod -R 777 "${sourcePath}" 2>/dev/null || true
+                echo "SUCCESS: Target directory exists and permissions set"
+            else
+                echo "FAILED: Target directory does not exist"
+                exit 1
+            fi
+        `;
+        
+        const verifyExec = await execCommand(container, verifyCmd, {
+            Privileged: true,
+            User: 'root'
+        });
+        
+        const verifyStream = await verifyExec.start();
+        let verifyOutput = '';
+        
+        await new Promise((resolve, reject) => {
+            verifyStream.on('data', chunk => {
+                verifyOutput += chunk.toString();
+            });
+            verifyStream.on('end', resolve);
+            verifyStream.on('error', reject);
+        });
+        
+        if (!verifyOutput.includes('SUCCESS')) {
+            throw new Error(`Verification failed: ${verifyOutput}`);
+        }
+
+        // Move the file/directory with elevated privileges
+        const moveCmd = `mv "${sourcePath}" "${targetPath}" && chmod -R 777 "${targetPath}" 2>/dev/null || true`;
+        
+        const moveExec = await execCommand(container, moveCmd, {
+            Privileged: true,
+            User: 'root'
+        });
+        
+        const moveStream = await moveExec.start();
+        let moveOutput = '';
+        
+        await new Promise((resolve, reject) => {
+            moveStream.on('data', chunk => {
+                moveOutput += chunk.toString();
+            });
+            moveStream.on('end', resolve);
+            moveStream.on('error', reject);
+        });
+
+        // Verify the move operation
+        const verifyMoveCmd = `test -e "${targetPath}" && echo "SUCCESS: Move verified"`;
+        
+        const verifyMoveExec = await execCommand(container, verifyMoveCmd);
+        const verifyMoveStream = await verifyMoveExec.start();
+        let verifyMoveOutput = '';
+        
+        await new Promise((resolve, reject) => {
+            verifyMoveStream.on('data', chunk => {
+                verifyMoveOutput += chunk.toString();
+            });
+            verifyMoveStream.on('end', resolve);
+            verifyMoveStream.on('error', reject);
+        });
+
+        if (!verifyMoveOutput.includes('SUCCESS')) {
+            throw new Error('Move operation could not be verified');
+        }
+
+        res.json({ message: 'Item moved successfully' });
+    } catch (error) {
+        console.error('Move error:', error);
+        res.status(403).json({
+            error: 'Failed to move item',
+            details: error.message || 'Unable to move. The location might be read-only or system protected.'
+        });
+    }
 }); 
