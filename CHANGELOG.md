@@ -13,6 +13,8 @@ All notable changes to DockerFlex will be documented in this file.
 - Improved error handling for file operations
 - Added better success/error notifications
 - Fixed file content encoding issues
+- Added file permissions management with visual interface
+- Added support for numeric and checkbox-based permission editing
 
 ## [v1.0.0] - November 2024
 

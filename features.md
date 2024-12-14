@@ -18,6 +18,18 @@ At its core, DockerFlex excels in file operations with an intuitive drag-and-dro
 
 Multiple file selection enables batch operations, while directory-specific drop zones make it clear where files will be placed. The system provides progress indicators for all operations and handles errors gracefully with clear user feedback.
 
+## File Permissions Management
+
+DockerFlex provides a user-friendly interface for managing file and directory permissions within containers:
+
+- Visual permission management with checkbox-based interface
+- Support for numeric permission input (chmod style)
+- Real-time synchronization between checkbox and numeric inputs
+- Secure permission updates with elevated privileges
+- Instant feedback on permission changes
+- Support for all standard Unix permissions (read, write, execute)
+- Separate controls for owner, group, and others permissions
+
 ## Professional Code Editor
 
 The built-in code editor is powered by CodeMirror, offering comprehensive syntax highlighting for a wide range of languages including JavaScript, Python, PHP, SQL, HTML/CSS, XML, YAML, JSON, Markdown, Shell scripts, Go, and configuration formats like NGINX and TOML. Real-time code linting helps catch errors as you type, particularly useful for JSON and YAML files.

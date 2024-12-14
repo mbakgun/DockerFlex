@@ -29,6 +29,7 @@ import {
     FormControlLabel,
     Checkbox,
     CircularProgress,
+    FormGroup,
 } from '@material-ui/core';
 import {
     Add as AddIcon,
@@ -78,6 +79,7 @@ import { shell } from '@codemirror/legacy-modes/mode/shell';
 import { go } from '@codemirror/lang-go';
 import { nginx } from '@codemirror/legacy-modes/mode/nginx';
 import { toml } from '@codemirror/legacy-modes/mode/toml';
+import { Info as InfoIcon } from '@material-ui/icons';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -806,7 +808,18 @@ const useStyles = makeStyles((theme) => ({
             backgroundColor: 'rgba(76, 175, 80, 0.1)',
             borderRadius: theme.spacing(1)
         }
-    }
+    },
+    checkboxStyle: {
+        '& .MuiCheckbox-root': {
+            color: '#8b949e',
+            '&.Mui-checked': {
+                color: '#2E7D32'
+            }
+        },
+        '& .MuiFormControlLabel-label': {
+            color: '#e6edf3'
+        }
+    },
 }));
 
 function Alert(props) {
@@ -959,6 +972,95 @@ function App() {
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authError, setAuthError] = useState('');
+
+    // Add new state variables in App component
+    const [permissionsDialog, setPermissionsDialog] = useState(false);
+    const [permissions, setPermissions] = useState({
+        owner: { read: true, write: true, execute: true },
+        group: { read: true, write: true, execute: true },
+        others: { read: true, write: true, execute: true }
+    });
+
+    // Add new helper functions
+    const calculateNumericPermissions = (perms) => {
+        const calculate = (entity) => {
+            let value = 0;
+            if (entity.read) value += 4;
+            if (entity.write) value += 2;
+            if (entity.execute) value += 1;
+            return value;
+        };
+        
+        return `${calculate(perms.owner)}${calculate(perms.group)}${calculate(perms.others)}`;
+    };
+
+    const parseNumericPermissions = (numeric) => {
+        const parseBits = (value) => ({
+            read: (value & 4) === 4,
+            write: (value & 2) === 2,
+            execute: (value & 1) === 1
+        });
+        
+        const digits = numeric.toString().padStart(3, '0');
+        return {
+            owner: parseBits(parseInt(digits[0])),
+            group: parseBits(parseInt(digits[1])),
+            others: parseBits(parseInt(digits[2]))
+        };
+    };
+
+    // Add loading state for permissions
+    const [permissionsLoading, setPermissionsLoading] = useState(false);
+
+    // Add new handler functions
+    const handlePermissionsClick = async () => {
+        if (!selectedFile) return;
+        
+        try {
+            setPermissionsLoading(true);
+            const response = await axios.get(
+                `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/permissions`,
+                { params: { path: `${currentPath}/${selectedFile.name}` } }
+            );
+            
+            // Parse the mode from response
+            const mode = response.data.mode.replace(/[^\d]/g, '').slice(-3);
+            if (!mode || !/^[0-7]{3}$/.test(mode)) {
+                throw new Error('Invalid permissions format received');
+            }
+            
+            const newPermissions = parseNumericPermissions(mode);
+            setPermissions(newPermissions);
+            setPermissionsDialog(true);
+            setPermissionsLoading(false);
+        } catch (error) {
+            setPermissionsLoading(false);
+            showErrorMessage('Error fetching permissions: ' + error.message);
+        }
+    };
+
+    const handlePermissionsSave = async () => {
+        if (!selectedFile) return;
+        
+        try {
+            setPermissionsLoading(true);  // Add loading state
+            await axios.put(
+                `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/permissions`,
+                {
+                    path: `${currentPath}/${selectedFile.name}`,
+                    mode: calculateNumericPermissions(permissions)
+                }
+            );
+            
+            setPermissionsDialog(false);
+            showSuccessMessage('Permissions updated successfully');
+            await fetchFiles(selectedContainer.Id, currentPath);
+            setPermissionsLoading(false);  // Clear loading state
+        } catch (error) {
+            setPermissionsLoading(false);  // Clear loading state on error
+            showErrorMessage('Error updating permissions: ' + error.message);
+        }
+    };
 
     // Add authentication check on mount
     useEffect(() => {
@@ -1121,6 +1223,9 @@ function App() {
     // Add effect to handle keyboard events
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // If permissions dialog is open, don't handle file operations
+            if (permissionsDialog) return;
+            
             // Only handle keyboard events when dialog is open and editor is not open
             if (!openDialog || openEditor) return;
 
@@ -1144,7 +1249,7 @@ function App() {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [openDialog, openEditor, selectedFile, classes.backButton]); // Added classes.backButton to dependencies
+    }, [openDialog, openEditor, selectedFile, classes.backButton, permissionsDialog]);
 
     const fetchContainers = async () => {
         try {
@@ -1498,7 +1603,6 @@ function App() {
             return a.Names[0].localeCompare(b.Names[0]);
         });
     };
-
 
 
 
@@ -2224,6 +2328,37 @@ function App() {
         setDraggedItem(null);
     };
 
+    // Add keyboard event handler for permissions dialog
+    const handlePermissionsKeyDown = (event) => {
+        if (event.key === 'Escape') {
+            setPermissionsDialog(false);
+        } else if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+            event.preventDefault();
+            event.stopPropagation();
+            handlePermissionsSave();
+        }
+    };
+
+    // Update permissions dialog
+    <Dialog
+        open={permissionsDialog}
+        onClose={() => setPermissionsDialog(false)}
+        className={classes.newItemDialog}
+        maxWidth="sm"
+        fullWidth
+        onKeyDown={handlePermissionsKeyDown}
+    >
+        <DialogTitle style={{ 
+            borderBottom: '1px solid #30363d',
+            color: '#e6edf3'
+        }}>
+            File Permissions - {selectedFile?.name}
+        </DialogTitle>
+        <DialogContent style={{ paddingTop: '20px' }}>
+            {/* ... existing content ... */}
+        </DialogContent>
+    </Dialog>
+
     return (
         <>
             <Dialog open={showAuthDialog} onClose={() => { }} maxWidth="sm" fullWidth>
@@ -2581,6 +2716,20 @@ function App() {
                                                 </IconButton>
                                             </span>
                                         </Tooltip>
+
+                                        {/* Add to the toolbar actions (near other file operation buttons) */}
+                                        <Tooltip title="Permissions" arrow>
+                                            <span style={{ margin: '0 2px' }}>
+                                                <IconButton
+                                                    size="small"
+                                                    color="inherit"
+                                                    disabled={!selectedFile}
+                                                    onClick={handlePermissionsClick}
+                                                >
+                                                    <InfoIcon />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
                                     </div>
 
                                     {/* Vertical Divider */}
@@ -2815,6 +2964,7 @@ function App() {
                                                 checked={restartOnSave}
                                                 onChange={(e) => setRestartOnSave(e.target.checked)}
                                                 name="restartOnSave"
+                                                className={classes.checkboxStyle}
                                             />
                                         }
                                         label="Restart container on save"
@@ -3062,6 +3212,165 @@ function App() {
                                 variant="contained"
                             >
                                 Close Without Saving
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+
+                    {/* Add new dialog for permissions */}
+                    <Dialog
+                        open={permissionsDialog}
+                        onClose={() => setPermissionsDialog(false)}
+                        className={classes.newItemDialog}
+                        maxWidth="sm"
+                        fullWidth
+                        onKeyDown={handlePermissionsKeyDown}
+                    >
+                        <DialogTitle style={{ 
+                            borderBottom: '1px solid #30363d',
+                            color: '#e6edf3'
+                        }}>
+                            File Permissions - {selectedFile?.name}
+                        </DialogTitle>
+                        <DialogContent style={{ paddingTop: '20px' }}>
+                            {permissionsLoading ? (
+                                <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+                                    <CircularProgress />
+                                </Box>
+                            ) : (
+                                <Grid container spacing={2}>
+                                    {['owner', 'group', 'others'].map((entity) => (
+                                        <Grid item xs={12} key={entity}>
+                                            <Typography variant="subtitle1" style={{ 
+                                                textTransform: 'capitalize',
+                                                marginBottom: '8px'
+                                            }}>
+                                                {entity}
+                                            </Typography>
+                                            <FormGroup row>
+                                                <FormControlLabel
+                                                    className={classes.checkboxStyle}
+                                                    control={
+                                                        <Checkbox
+                                                            checked={permissions[entity].read}
+                                                            onChange={(e) => {
+                                                                const newPermissions = {
+                                                                    ...permissions,
+                                                                    [entity]: { 
+                                                                        ...permissions[entity], 
+                                                                        read: e.target.checked 
+                                                                    }
+                                                                };
+                                                                setPermissions(newPermissions);
+                                                                // Force update numeric input
+                                                                const numericField = document.querySelector('input[type="text"][pattern="[0-7]{0,3}"]');
+                                                                if (numericField) {
+                                                                    numericField.value = calculateNumericPermissions(newPermissions);
+                                                                }
+                                                            }}
+                                                        />
+                                                    }
+                                                    label="Read"
+                                                />
+                                                <FormControlLabel
+                                                    className={classes.checkboxStyle}
+                                                    control={
+                                                        <Checkbox
+                                                            checked={permissions[entity].write}
+                                                            onChange={(e) => {
+                                                                const newPermissions = {
+                                                                    ...permissions,
+                                                                    [entity]: { 
+                                                                        ...permissions[entity], 
+                                                                        write: e.target.checked 
+                                                                    }
+                                                                };
+                                                                setPermissions(newPermissions);
+                                                                // Force update numeric input
+                                                                const numericField = document.querySelector('input[type="text"][pattern="[0-7]{0,3}"]');
+                                                                if (numericField) {
+                                                                    numericField.value = calculateNumericPermissions(newPermissions);
+                                                                }
+                                                            }}
+                                                        />
+                                                    }
+                                                    label="Write"
+                                                />
+                                                <FormControlLabel
+                                                    className={classes.checkboxStyle}
+                                                    control={
+                                                        <Checkbox
+                                                            checked={permissions[entity].execute}
+                                                            onChange={(e) => {
+                                                                const newPermissions = {
+                                                                    ...permissions,
+                                                                    [entity]: { 
+                                                                        ...permissions[entity], 
+                                                                        execute: e.target.checked 
+                                                                    }
+                                                                };
+                                                                setPermissions(newPermissions);
+                                                                // Force update numeric input
+                                                                const numericField = document.querySelector('input[type="text"][pattern="[0-7]{0,3}"]');
+                                                                if (numericField) {
+                                                                    numericField.value = calculateNumericPermissions(newPermissions);
+                                                                }
+                                                            }}
+                                                        />
+                                                    }
+                                                    label="Execute"
+                                                />
+                                            </FormGroup>
+                                        </Grid>
+                                    ))}
+                                    <Grid item xs={12}>
+                                        <TextField
+                                            label="Numeric Permissions"
+                                            defaultValue={calculateNumericPermissions(permissions)}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (/^[0-7]{0,3}$/.test(value)) {
+                                                    // Update permissions immediately for any valid input
+                                                    if (value.length === 3) {
+                                                        setPermissions(parseNumericPermissions(value));
+                                                    }
+                                                    // Allow the input to be updated
+                                                    e.target.value = value;
+                                                }
+                                            }}
+                                            className={classes.newItemTextField}
+                                            inputProps={{ 
+                                                maxLength: 3,
+                                                style: { color: '#e6edf3' },
+                                                type: 'text',
+                                                pattern: '[0-7]{0,3}'
+                                            }}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => e.stopPropagation()}
+                                            InputLabelProps={{
+                                                style: { color: '#8b949e' }
+                                            }}
+                                            variant="outlined"
+                                            fullWidth
+                                        />
+                                    </Grid>
+                                </Grid>
+                            )}
+                        </DialogContent>
+                        <DialogActions style={{ borderTop: '1px solid #30363d', padding: '16px' }}>
+                            <Button onClick={() => setPermissionsDialog(false)} style={{ color: '#8b949e' }}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handlePermissionsSave}
+                                className={classes.saveButton}
+                                variant="contained"
+                                disabled={permissionsLoading}
+                            >
+                                {permissionsLoading ? (
+                                    <CircularProgress size={24} style={{ color: '#ffffff' }} />
+                                ) : (
+                                    'Save'
+                                )}
                             </Button>
                         </DialogActions>
                     </Dialog>

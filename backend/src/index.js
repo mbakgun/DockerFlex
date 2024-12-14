@@ -1445,3 +1445,83 @@ EOF`;
         });
     }
 });
+
+// Add permissions endpoints
+app.get('/api/containers/:id/permissions', async (req, res) => {
+    try {
+        const container = docker.getContainer(req.params.id);
+        const { path } = req.query;
+
+        if (!path) {
+            return res.status(400).json({ error: 'Path parameter is required' });
+        }
+
+        const exec = await container.exec({
+            Cmd: ['stat', '-c', '%a', path.trim()],
+            AttachStdout: true,
+            AttachStderr: true,
+        });
+
+        const stream = await exec.start();
+        let output = '';
+        let error = '';
+
+        stream.on('data', chunk => {
+            output += chunk.toString();
+        });
+
+        stream.on('error', chunk => {
+            error += chunk.toString();
+        });
+
+        await new Promise((resolve) => stream.on('end', resolve));
+
+        if (error) {
+            throw new Error(error);
+        }
+
+        // Clean and validate the output
+        const mode = output.trim().replace(/[^\d]/g, '').slice(-3);
+        if (!mode || !/^[0-7]{3}$/.test(mode)) {
+            throw new Error('Invalid permissions format');
+        }
+
+        res.json({ mode });
+    } catch (error) {
+        console.error('Error getting permissions:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/containers/:id/permissions', async (req, res) => {
+    try {
+        const container = docker.getContainer(req.params.id);
+        const { path, mode } = req.body;
+
+        if (!path || !mode) {
+            return res.status(400).json({ error: 'Path and mode are required' });
+        }
+
+        // Validate mode format (should be 3 digits between 0-7)
+        if (!/^[0-7]{3}$/.test(mode)) {
+            return res.status(400).json({ error: 'Invalid mode format. Should be 3 digits between 0-7' });
+        }
+
+        // Use executeCommandWithPrivileges for better permission handling
+        await executeCommandWithPrivileges(container, `chmod ${mode} "${path.trim()}"`);
+        
+        // Verify the permissions were set correctly
+        const verifyOutput = await executeCommandWithPrivileges(container, `stat -c '%a' "${path.trim()}"`);
+        const actualMode = verifyOutput.trim().replace(/[^\d]/g, '').slice(-3);
+        
+        // Consider the operation successful if we can read the permissions
+        if (!actualMode || !/^[0-7]{3}$/.test(actualMode)) {
+            throw new Error('Failed to read permissions after change');
+        }
+
+        res.json({ message: 'Permissions updated successfully' });
+    } catch (error) {
+        console.error('Error updating permissions:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
