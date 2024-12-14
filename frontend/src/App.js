@@ -1138,15 +1138,21 @@ function App() {
     }, []);
 
     const checkAuthentication = async () => {
-        try {
-            const response = await axios.post(`${INTERNAL_API_URL}/api/auth`, {});
-            if (response.data.authenticated) {
-                setIsAuthenticated(true);
-                setShowAuthDialog(false);
+        const token = localStorage.getItem('dockerflex-token');
+        if (token) {
+            try {
+                axios.defaults.headers.common['X-DockerFlex-Auth'] = token;
+                const response = await axios.post(`${INTERNAL_API_URL}/api/auth`, {});
+                if (response.data.authenticated) {
+                    setIsAuthenticated(true);
+                    setShowAuthDialog(false);
+                    return;
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
             }
-        } catch (error) {
-            setShowAuthDialog(true);
         }
+        setShowAuthDialog(true);
     };
 
     const handleAuthentication = async () => {
@@ -1155,17 +1161,73 @@ function App() {
             if (response.data.authenticated) {
                 const token = response.headers['x-dockerflex-auth'];
                 if (token) {
+                    // Save token to localStorage
                     localStorage.setItem('dockerflex-token', token);
+                    // Set token in axios defaults with correct case
                     axios.defaults.headers.common['X-DockerFlex-Auth'] = token;
                 }
                 setIsAuthenticated(true);
                 setShowAuthDialog(false);
                 setAuthError('');
+                
+                // Fetch containers after setting up auth
+                await fetchContainers();
             }
         } catch (error) {
             setAuthError('Invalid password');
+            // Clear token on error
             localStorage.removeItem('dockerflex-token');
             delete axios.defaults.headers.common['X-DockerFlex-Auth'];
+            console.error('Authentication error:', error);
+        }
+    };
+
+    // Add token restoration on app load
+    useEffect(() => {
+        const token = localStorage.getItem('dockerflex-token');
+        if (token) {
+            axios.defaults.headers.common['X-DockerFlex-Auth'] = token;
+            setIsAuthenticated(true);
+            setShowAuthDialog(false);
+        }
+    }, []);
+
+    // Add this function to handle container restoration
+    const restorePreviousState = async () => {
+        const savedContainer = localStorage.getItem('selectedContainer');
+        const savedPath = localStorage.getItem('currentPath');
+        
+        if (savedContainer) {
+            const parsedContainer = JSON.parse(savedContainer);
+            setSelectedContainer(parsedContainer);
+            setOpenDialog(true);
+            
+            if (savedPath) {
+                setCurrentPath(savedPath);
+                // Fetch files for the saved path
+                try {
+                    await fetchFiles(parsedContainer.Id, savedPath);
+                } catch (error) {
+                    console.error('Error fetching files:', error);
+                    // Handle error appropriately
+                }
+            }
+        }
+    };
+
+    // Modify the fetchContainers function
+    const fetchContainers = async () => {
+        try {
+            const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
+            setContainers(response.data);
+            
+            // After fetching containers, restore previous state
+            await restorePreviousState();
+        } catch (error) {
+            console.error('Error fetching containers:', error);
+            if (error.response?.status === 401) {
+                setShowAuthDialog(true);
+            }
         }
     };
 
@@ -1318,15 +1380,6 @@ function App() {
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [openDialog, openEditor, selectedFile, classes.backButton, permissionsDialog]);
-
-    const fetchContainers = async () => {
-        try {
-            const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
-            setContainers(sortContainers(response.data));
-        } catch (error) {
-            showErrorMessage('Error fetching containers: ' + error.message);
-        }
-    };
 
     const handleContainerClick = async (container) => {
         try {
@@ -2428,7 +2481,7 @@ function App() {
     </Dialog>
 
     return (
-        <>
+        <React.Fragment>
             <Dialog open={showAuthDialog} onClose={() => { }} maxWidth="sm" fullWidth className={classes.authDialog}>
                 <DialogTitle>
                     <div className={classes.titleContainer}>
@@ -2986,7 +3039,7 @@ function App() {
                                             onBlur={handleRename}
                                             autoFocus
                                             fullWidth
-                                            className={classes.renameTextField}
+                                            className={`${classes.renameTextField} ${classes.newItemContent}`}
                                             InputProps={{
                                                 style: { color: '#ffffff' }
                                             }}
@@ -3189,7 +3242,7 @@ function App() {
                                 fullWidth
                                 value={newItemName}
                                 onChange={(e) => setNewItemName(e.target.value)}
-                                className={classes.newItemTextField}
+                                className={`${classes.newItemTextField} ${classes.newItemContent}`}
                                 variant="outlined"
                                 style={{ marginTop: '16px' }}
                             />
@@ -3444,7 +3497,7 @@ function App() {
                     </Dialog>
                 </Container>
             )}
-        </>
+        </React.Fragment>
     );
 }
 
