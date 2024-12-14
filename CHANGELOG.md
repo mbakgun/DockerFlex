@@ -6,6 +6,7 @@ All notable changes to DockerFlex will be documented in this file.
 
 ### Enhanced file operations and user experience improvements:
 
+- Added optional master password protection for enhanced security
 - Added drag & drop support for moving files to parent directory
 - Improved file/folder rename with space character support
 - Fixed file operation permissions in containers

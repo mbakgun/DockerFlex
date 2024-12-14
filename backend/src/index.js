@@ -24,6 +24,54 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Add authentication middleware
+const authMiddleware = (req, res, next) => {
+    const masterPassword = process.env.MASTER_PASSWORD;
+    
+    // If no master password is set, skip authentication
+    if (!masterPassword) {
+        return next();
+    }
+
+    // Skip authentication for the auth endpoint itself
+    if (req.path === '/api/auth') {
+        return next();
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (token !== masterPassword) {
+        return res.status(401).json({ error: 'Invalid authentication' });
+    }
+
+    next();
+};
+
+// Add auth endpoint
+app.post('/api/auth', (req, res) => {
+    const masterPassword = process.env.MASTER_PASSWORD;
+    const { password } = req.body;
+
+    if (!masterPassword) {
+        return res.json({ authenticated: true });
+    }
+
+    if (password === masterPassword) {
+        // Set the token in response headers
+        res.set('Authorization', `Bearer ${masterPassword}`);
+        return res.json({ authenticated: true });
+    }
+
+    res.status(401).json({ error: 'Invalid password' });
+});
+
+// Apply authentication middleware to all routes
+app.use('/api', authMiddleware);
+
 // Add error handling middleware
 const errorHandler = (err, req, res, next) => {
     console.error('Error:', err);
