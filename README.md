@@ -50,6 +50,7 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Delete files and folders
   - Create new files and directories
 
+> 💡 For a comprehensive list of features and capabilities, check out our detailed [Features Guide](features.md).
 
 ---
 
