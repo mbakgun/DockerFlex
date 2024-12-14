@@ -116,10 +116,10 @@ const useStyles = makeStyles((theme) => ({
         marginBottom: theme.spacing(2),
         letterSpacing: '0.5px',
         display: 'inline-grid',
-        alignItems: 'center',  // This ensures vertical centering
+        alignItems: 'center',
         justifyContent: 'center',
         gap: theme.spacing(0.75),
-        position: 'relative', // Add this
+        position: 'relative',
         [theme.breakpoints.down('sm')]: {
             fontSize: '1.75rem',
             padding: '0 16px',
@@ -130,7 +130,7 @@ const useStyles = makeStyles((theme) => ({
         color: '#e6edf3',
         transition: 'transform 0.2s, color 0.2s',
         position: 'relative',
-        padding: 8,  // Add padding to make the button more compact
+        padding: 8,
         '&:hover': {
             color: '#58a6ff',
             transform: 'scale(1.1)',
@@ -139,15 +139,16 @@ const useStyles = makeStyles((theme) => ({
     },
     version: {
         fontSize: '0.7rem',
-        opacity: 0.7,
+        color: '#8b949e',
         position: 'absolute',
-        bottom: '-12px',  // Reduced from -15px
+        bottom: '-15px',
         left: '50%',
         transform: 'translateX(-50%)',
         whiteSpace: 'nowrap',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         [theme.breakpoints.down('sm')]: {
             fontSize: '0.6rem',
-            bottom: '-10px',  // Even smaller gap on mobile
+            bottom: '-10px',
         },
     },
     hostInfo: {
@@ -888,14 +889,6 @@ const useStyles = makeStyles((theme) => ({
             color: '#e6edf3',
             marginBottom: theme.spacing(1),
         },
-    },
-    version: {
-        fontSize: '0.7rem',
-        color: '#8b949e',
-        position: 'absolute',
-        bottom: '-15px',
-        left: '50%',
-        transform: 'translateX(-50%)',
     },
 }));
 
@@ -2494,8 +2487,10 @@ function App() {
                 <Container className={classes.root} maxWidth="xl">
                     <Box className={classes.headerContainer}>
                         <Grow in timeout={1000}>
-                            <Typography variant="h4" className={classes.title}>
-                                DockerFlex
+                            <div className={classes.titleContainer}>
+                                <Typography variant="h4">
+                                    DockerFlex
+                                </Typography>
                                 <Tooltip title="View on GitHub" arrow>
                                     <IconButton
                                         className={classes.githubButton}
@@ -2504,11 +2499,12 @@ function App() {
                                         <GitHubIcon />
                                     </IconButton>
                                 </Tooltip>
-                            </Typography>
+                                <span className={classes.version}>v1.0.1</span>
+                            </div>
                         </Grow>
 
                         <Divider className={classes.divider} />
-
+                        
                         <Typography variant="subtitle1" className={classes.hostInfo}>
                             Host: {hostInfo}
                         </Typography>
