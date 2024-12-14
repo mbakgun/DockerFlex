@@ -820,6 +820,83 @@ const useStyles = makeStyles((theme) => ({
             color: '#e6edf3'
         }
     },
+    authDialog: {
+        '& .MuiDialog-paper': {
+            backgroundColor: '#0d1117',
+            color: '#e6edf3',
+            padding: theme.spacing(3),
+            minWidth: '300px',
+        },
+        '& .MuiDialogTitle-root': {
+            borderBottom: '1px solid #30363d',
+            '& h4': {
+                color: '#e6edf3',
+            },
+        },
+        '& .MuiDialogContent-root': {
+            paddingTop: theme.spacing(3),
+        },
+        '& .MuiDialogActions-root': {
+            borderTop: '1px solid #30363d',
+            padding: theme.spacing(2),
+        },
+    },
+    authInput: {
+        '& .MuiInputBase-input': {
+            color: '#e6edf3',
+        },
+        '& .MuiOutlinedInput-root': {
+            '& fieldset': {
+                borderColor: '#30363d',
+            },
+            '&:hover fieldset': {
+                borderColor: '#6e7681',
+            },
+            '&.Mui-focused fieldset': {
+                borderColor: '#f0883e',
+            },
+        },
+        '& .MuiInputLabel-root': {
+            color: '#8b949e',
+        },
+        '& .MuiInputLabel-outlined.Mui-focused': {
+            color: '#f0883e',
+        },
+    },
+    authButton: {
+        backgroundColor: '#f0883e',
+        color: '#ffffff',
+        width: '100%',
+        '&:hover': {
+            backgroundColor: '#d46b28',
+        },
+        '&.Mui-disabled': {
+            backgroundColor: '#4a3928',
+            color: '#b08c5b',
+        },
+    },
+    authError: {
+        color: '#f85149',
+        marginTop: theme.spacing(1),
+        fontSize: '0.875rem',
+    },
+    titleContainer: {
+        textAlign: 'center',
+        marginBottom: theme.spacing(2),
+        position: 'relative',
+        '& h4': {
+            color: '#e6edf3',
+            marginBottom: theme.spacing(1),
+        },
+    },
+    version: {
+        fontSize: '0.7rem',
+        color: '#8b949e',
+        position: 'absolute',
+        bottom: '-15px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+    },
 }));
 
 function Alert(props) {
@@ -2361,20 +2438,22 @@ function App() {
 
     return (
         <>
-            <Dialog open={showAuthDialog} onClose={() => { }} maxWidth="sm" fullWidth>
-                <DialogTitle style={{ textAlign: 'center' }}>
-                    <Typography variant="h4" className={classes.title}>
-                        DockerFlex
+            <Dialog open={showAuthDialog} onClose={() => { }} maxWidth="sm" fullWidth className={classes.authDialog}>
+                <DialogTitle>
+                    <div className={classes.titleContainer}>
+                        <Typography variant="h4">
+                            DockerFlex
+                        </Typography>
                         <Tooltip title="View on GitHub" arrow>
                             <IconButton
                                 className={classes.githubButton}
                                 onClick={() => window.open('https://github.com/mbakgun/dockerflex', '_blank')}
                             >
                                 <GitHubIcon />
-                                <span className={classes.version}>v1.0.1</span>
                             </IconButton>
                         </Tooltip>
-                    </Typography>
+                        <span className={classes.version}>v1.0.1</span>
+                    </div>
                 </DialogTitle>
                 <DialogContent>
                     <TextField
@@ -2383,6 +2462,7 @@ function App() {
                         label="Master Password"
                         type="password"
                         fullWidth
+                        variant="outlined"
                         value={password}
                         onChange={(e) => {
                             setPassword(e.target.value);
@@ -2390,6 +2470,7 @@ function App() {
                         }}
                         error={!!authError}
                         helperText={authError}
+                        className={classes.authInput}
                         onKeyPress={(e) => {
                             if (e.key === 'Enter' && password) {
                                 handleAuthentication();
@@ -2401,11 +2482,10 @@ function App() {
                     <Button
                         onClick={handleAuthentication}
                         disabled={!password}
-                        color="primary"
+                        className={classes.authButton}
                         variant="contained"
-                        fullWidth
                     >
-                        Login
+                        LOGIN
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -2422,7 +2502,6 @@ function App() {
                                         onClick={() => window.open('https://github.com/mbakgun/dockerflex', '_blank')}
                                     >
                                         <GitHubIcon />
-                                        <span className={classes.version}>v1.0.1</span>
                                     </IconButton>
                                 </Tooltip>
                             </Typography>
