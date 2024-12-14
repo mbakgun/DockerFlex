@@ -2448,25 +2448,20 @@ function App() {
                 </DialogTitle>
                 <DialogContent>
                     <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Master Password"
+                        id="MASTER_PASSWORD"
                         type="password"
-                        fullWidth
-                        variant="outlined"
                         value={password}
-                        onChange={(e) => {
-                            setPassword(e.target.value);
-                            setAuthError('');
-                        }}
-                        error={!!authError}
-                        helperText={authError}
-                        className={classes.authInput}
-                        onKeyPress={(e) => {
-                            if (e.key === 'Enter' && password) {
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
                                 handleAuthentication();
                             }
                         }}
+                        className={classes.authInput}
+                        label="Password"
+                        variant="outlined"
+                        fullWidth
+                        autoFocus
                     />
                 </DialogContent>
                 <DialogActions>
