@@ -1153,21 +1153,19 @@ function App() {
         try {
             const response = await axios.post(`${INTERNAL_API_URL}/api/auth`, { password });
             if (response.data.authenticated) {
-                // Get the token from response headers or use password as token
-                const token = response.headers.authorization?.split(' ')[1] || password;
-                // Set the token globally for axios
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-                // Small delay to ensure headers are set
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // First set the authenticated state
+                const token = response.headers['x-dockerflex-auth'];
+                if (token) {
+                    localStorage.setItem('dockerflex-token', token);
+                    axios.defaults.headers.common['X-DockerFlex-Auth'] = token;
+                }
                 setIsAuthenticated(true);
                 setShowAuthDialog(false);
+                setAuthError('');
             }
         } catch (error) {
             setAuthError('Invalid password');
-            setPassword('');
+            localStorage.removeItem('dockerflex-token');
+            delete axios.defaults.headers.common['X-DockerFlex-Auth'];
         }
     };
 

@@ -38,20 +38,21 @@ const authMiddleware = (req, res, next) => {
         return next();
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Change from Authorization to X-DockerFlex-Auth
+    const authHeader = req.headers['x-dockerflex-auth'];
+    if (!authHeader) {
         return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const token = authHeader.split(' ')[1];
-    if (token !== masterPassword) {
+    // Remove Bearer prefix check since we're using a custom header
+    if (authHeader !== masterPassword) {
         return res.status(401).json({ error: 'Invalid authentication' });
     }
 
     next();
 };
 
-// Add auth endpoint
+// Update auth endpoint
 app.post('/api/auth', (req, res) => {
     const masterPassword = process.env.MASTER_PASSWORD;
     const { password } = req.body;
@@ -61,8 +62,8 @@ app.post('/api/auth', (req, res) => {
     }
 
     if (password === masterPassword) {
-        // Set the token in response headers
-        res.set('Authorization', `Bearer ${masterPassword}`);
+        // Set custom header instead of Authorization
+        res.set('X-DockerFlex-Auth', masterPassword);
         return res.json({ authenticated: true });
     }
 
