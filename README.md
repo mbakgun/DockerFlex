@@ -68,53 +68,10 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
 5. Create a Pull Request
 
 ## ✍️ Version History
-### v1.0.1 (12 / 2024)
-Enhanced file operations and user experience improvements:
 
- [✓] Drag & drop support for moving files to parent directory
- 
- [✓] Improved file/folder rename with space character support
- 
- [✓] Fixed file operation permissions in containers
- 
- [✓] Improved error handling for file operations
- 
- [✓] Better success/error notifications
- 
- [✓] Fixed file content encoding issues
+DockerFlex is currently at version v1.0.1. For detailed information about changes and improvements in each version, please see our [CHANGELOG](CHANGELOG.md).
 
-### v1.0.0 (11 / 2024)
-Initial release of DockerFlex with comprehensive Docker container file management capabilities and an intuitive web interface. This version introduces core features including real-time container monitoring, drag-and-drop file operations, and in-browser file editing with syntax highlighting.
-
-Recently Added Features:
-
- [✓] File/Folder copy operation
- 
- [✓] Syntax highlighting for **[JavaScript/TypeScript, Python, PHP, SQL, HTML/CSS, XML, YAML/YML, JSON, Markdown, Shell/Bash, Go, NGINX Config, TOML]**
- 
- [✓] Real-time code linting for JSON and YAML
- 
- [✓] Line numbers and active line highlighting
- 
- [✓] Custom theme optimized for dark mode
- 
- [✓] Container restart option on file save
- 
- [✓] File/Folder selection with keyboard navigation
- 
- [✓] Tab indentation support
- 
- [✓] Mobile-friendly interface
- 
- [✓] Drag and drop file editing
-   
- [✓] Integrated search toolbar
-
- [✓] Support for spaces in file and folder names
- 
- [✓] Enhanced file operations with elevated privileges
- 
- [✓] Improved error handling and user feedback
+Latest updates include drag & drop support for parent directory operations, improved file/folder rename functionality, and various bug fixes. See the changelog for complete details.
 
 <div align="left">
   <img src="assets/third.gif" alt="DockerFlex File Management" width="800"/>
