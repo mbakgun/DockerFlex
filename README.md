@@ -16,7 +16,6 @@
 <p align="center">
   <a href="#-overview">Overview</a> •
   <a href="#-key-features">Features</a> •
-  <a href="#-installation">Getting Started</a> •
   <a href="#-development">Development</a> •
   <a href="#-contributing">Contributing</a>
 </p>
@@ -51,6 +50,56 @@ DockerFlex is a modern web-based application that simplifies Docker container fi
   - Create new files and directories
 
 > 💡 For a comprehensive list of features and capabilities, check out our detailed [Features Guide](features.md).
+
+## 🛠 Development
+
+To set up DockerFlex for local development, follow these steps:
+
+### Prerequisites
+
+- Docker and Docker Compose installed on your system
+- Git installed for cloning the repository
+
+### Local Development Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/mbakgun/dockerflex.git
+cd dockerflex
+```
+
+2. Start the development environment using Docker Compose:
+```bash
+docker compose -f docker-compose-local.yml up
+```
+
+### Environment Configuration
+
+The development environment uses `docker-compose-local.yml` which includes:
+
+- Frontend container running on port 3200
+- Backend container with Docker socket access
+- Hot-reloading for both frontend and backend
+- Shared volumes for local development
+
+Key environment variables:
+
+- Frontend:
+  - `VITE_API_URL`: API endpoint path (/api)
+  - `VITE_BACKEND_URL`: Backend service URL (http://backend:4200)
+
+- Backend:
+  - `MASTER_PASSWORD`: Authentication password (optional)
+
+### Accessing the Application
+
+- Frontend: http://localhost:3200
+
+### Development Notes
+
+- The frontend container mounts your local `./frontend` directory for live updates
+- The backend container mounts your local `./backend` directory and Docker socket
+- Both services are configured with hot-reload for a smooth development experience
 
 ---
 
