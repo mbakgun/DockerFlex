@@ -1377,6 +1377,8 @@ function App() {
 
             // Handle Enter key for selected file
             if (e.key === 'Enter' && selectedFile) {
+                e.preventDefault();
+                e.stopPropagation();
                 handleFileDoubleClick(selectedFile);
             }
 
@@ -1476,6 +1478,8 @@ function App() {
         // If currently renaming, ignore double clicks
         if (isRenaming) return;
 
+        setPermissionsDialog(false);
+
         if (file.type === 'directory') {
             setSelectedFile(null);
             const newPath = currentPath === '/'
@@ -1539,6 +1543,7 @@ function App() {
                 window.location.pathname
             );
         }
+        setPermissionsDialog(false);
     };
 
     const handleCloseDialog = () => {
@@ -1548,6 +1553,7 @@ function App() {
         setCurrentPath('/');
         localStorage.removeItem('currentPath');
         localStorage.removeItem('selectedContainer');
+        setPermissionsDialog(false);
     };
 
     const handleCloseEditor = () => {
@@ -1556,6 +1562,7 @@ function App() {
         } else {
             closeEditorWithoutSaving();
         }
+        setPermissionsDialog(false);
     };
 
     const closeEditorWithoutSaving = () => {
@@ -1563,6 +1570,7 @@ function App() {
         setFileContent('');
         setOriginalContent('');
         setShowUnsavedDialog(false);
+        setPermissionsDialog(false);
     };
 
     const handleDownload = async () => {
