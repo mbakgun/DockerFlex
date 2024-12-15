@@ -822,11 +822,19 @@ const useStyles = makeStyles((theme) => ({
         }
     },
     authDialog: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#0d1117',
+        zIndex: theme.zIndex.modal,
         '& .MuiDialog-paper': {
             backgroundColor: '#0d1117',
             color: '#e6edf3',
             padding: theme.spacing(3),
             minWidth: '300px',
+            boxShadow: 'none'
         },
         '& .MuiDialogTitle-root': {
             borderBottom: '1px solid #30363d',
@@ -1051,6 +1059,9 @@ function App() {
         others: { read: true, write: true, execute: true }
     });
 
+    // Add new state for loading
+    const [isLoading, setIsLoading] = useState(true);
+
     // Add new helper functions
     const calculateNumericPermissions = (perms) => {
         const calculate = (entity) => {
@@ -1138,6 +1149,7 @@ function App() {
     }, []);
 
     const checkAuthentication = async () => {
+        setIsLoading(true);
         const token = localStorage.getItem('dockerflex-token');
         if (token) {
             try {
@@ -1146,12 +1158,14 @@ function App() {
                 if (response.data.authenticated) {
                     setIsAuthenticated(true);
                     setShowAuthDialog(false);
+                    await restorePreviousState();
                     return;
                 }
             } catch (error) {
                 console.error('Auth check failed:', error);
             }
         }
+        setIsLoading(false);
         setShowAuthDialog(true);
     };
 
@@ -1198,21 +1212,23 @@ function App() {
         const savedPath = localStorage.getItem('currentPath');
         
         if (savedContainer) {
-            const parsedContainer = JSON.parse(savedContainer);
-            setSelectedContainer(parsedContainer);
-            setOpenDialog(true);
-            
-            if (savedPath) {
-                setCurrentPath(savedPath);
-                // Fetch files for the saved path
-                try {
+            try {
+                const parsedContainer = JSON.parse(savedContainer);
+                setSelectedContainer(parsedContainer);
+                setOpenDialog(true);
+                
+                if (savedPath) {
+                    setCurrentPath(savedPath);
                     await fetchFiles(parsedContainer.Id, savedPath);
-                } catch (error) {
-                    console.error('Error fetching files:', error);
-                    // Handle error appropriately
                 }
+            } catch (error) {
+                console.error('Error restoring state:', error);
+                // Clear invalid saved state
+                localStorage.removeItem('selectedContainer');
+                localStorage.removeItem('currentPath');
             }
         }
+        setIsLoading(false);
     };
 
     // Modify the fetchContainers function
@@ -1396,7 +1412,7 @@ function App() {
 
             const response = await axios.get(
                 `${INTERNAL_API_URL}/api/containers/${container.Id}/files`,
-                { params: { path: '/' } }
+                { params: { path: '/' } }  // Remove extra }
             );
 
             if (response.status === 200) {
@@ -1701,6 +1717,7 @@ function App() {
             : classes.normalContainer;
     };
 
+    // Update the sortContainers function
     const sortContainers = (containers) => {
         return [...containers].sort((a, b) => {
             // Helper function to check if container is red (artifact)
@@ -1711,16 +1728,20 @@ function App() {
 
             const aIsRed = isRed(a);
             const bIsRed = isRed(b);
+            const aIsRunning = a.State === 'running';
+            const bIsRunning = b.State === 'running';
 
-            // If one is red and other isn't, red goes last
-            if (aIsRed && !bIsRed) return 1;
-            if (!aIsRed && bIsRed) return -1;
+            // First priority: Red containers go last
+            if (aIsRed !== bIsRed) {
+                return aIsRed ? 1 : -1;
+            }
 
-            // If both are same color (red or green), sort by running state
-            if (a.State === 'running' && b.State !== 'running') return -1;
-            if (a.State !== 'running' && b.State === 'running') return 1;
+            // Second priority: Running state
+            if (aIsRunning !== bIsRunning) {
+                return aIsRunning ? -1 : 1;
+            }
 
-            // If same state, sort alphabetically
+            // Finally sort by name
             return a.Names[0].localeCompare(b.Names[0]);
         });
     };
@@ -2482,54 +2503,75 @@ function App() {
 
     return (
         <React.Fragment>
-            <Dialog open={showAuthDialog} onClose={() => { }} maxWidth="sm" fullWidth className={classes.authDialog}>
-                <DialogTitle>
-                    <div className={classes.titleContainer}>
-                        <Typography variant="h4">
-                            DockerFlex
-                        </Typography>
-                        <Tooltip title="View on GitHub" arrow>
-                            <IconButton
-                                className={classes.githubButton}
-                                onClick={() => window.open('https://github.com/mbakgun/dockerflex', '_blank')}
-                            >
-                                <GitHubIcon />
-                            </IconButton>
-                        </Tooltip>
-                        <span className={classes.version}>v1.0.1</span>
-                    </div>
-                </DialogTitle>
-                <DialogContent>
-                    <TextField
-                        id="MASTER_PASSWORD"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                handleAuthentication();
-                            }
-                        }}
-                        className={classes.authInput}
-                        label="Password"
-                        variant="outlined"
-                        fullWidth
-                        autoFocus
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        onClick={handleAuthentication}
-                        disabled={!password}
-                        className={classes.authButton}
-                        variant="contained"
-                    >
-                        LOGIN
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {isAuthenticated && (
+            {isLoading ? (
+                <Box 
+                    display="flex" 
+                    justifyContent="center" 
+                    alignItems="center" 
+                    minHeight="100vh"
+                    className={classes.root}
+                >
+                    <CircularProgress style={{ color: '#f0883e' }} />
+                </Box>
+            ) : showAuthDialog ? (
+                <Dialog
+                    open={showAuthDialog}
+                    className={classes.authDialog}
+                    maxWidth="sm"
+                    fullWidth
+                    disableEscapeKeyDown
+                >
+                    <DialogTitle>
+                        <div className={classes.titleContainer}>
+                            <Typography variant="h4">
+                                DockerFlex
+                            </Typography>
+                            <Tooltip title="View on GitHub" arrow>
+                                <IconButton
+                                    className={classes.githubButton}
+                                    onClick={() => window.open('https://github.com/mbakgun/dockerflex', '_blank')}
+                                >
+                                    <GitHubIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <span className={classes.version}>v1.0.1</span>
+                        </div>
+                    </DialogTitle>
+                    <DialogContent>
+                        <TextField
+                            id="MASTER_PASSWORD"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleAuthentication();
+                                }
+                            }}
+                            className={classes.authInput}
+                            label="Password"
+                            variant="outlined"
+                            fullWidth
+                            autoFocus
+                        />
+                        {authError && (
+                            <Typography className={classes.authError}>
+                                {authError}
+                            </Typography>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button
+                            onClick={handleAuthentication}
+                            disabled={!password}
+                            className={classes.authButton}
+                            variant="contained"
+                        >
+                            LOGIN
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            ) : (
                 <Container className={classes.root} maxWidth="xl">
                     <Box className={classes.headerContainer}>
                         <Grow in timeout={1000}>
@@ -2586,7 +2628,7 @@ function App() {
                     </Box>
 
                     <Grid container spacing={3}>
-                        {containers.map((container, index) => (
+                        {sortContainers(containers).map((container, index) => (
                             <Grid item xs={12} sm={6} md={4} key={container.Id}>
                                 <Fade in timeout={500 * (index + 1)}>
                                     <Paper
