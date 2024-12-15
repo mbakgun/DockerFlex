@@ -350,7 +350,6 @@ const useStyles = makeStyles((theme) => ({
             backgroundColor: '#0d1117',
             borderRight: '1px solid #30363d',
         },
-        // Linting styles
         '& .cm-diagnostic-error': {
             borderLeft: '2px solid #ff0000',
         },
@@ -621,7 +620,7 @@ const useStyles = makeStyles((theme) => ({
                     margin: 0,
                 },
                 '& .MuiButton-label > span:last-child': {
-                    display: 'none', // Hide "Save" text on mobile
+                    display: 'none', 
                 },
             },
         },
@@ -770,7 +769,7 @@ const useStyles = makeStyles((theme) => ({
         left: '50%',
         marginTop: -12,
         marginLeft: -12,
-        color: '#ffffff !important', // Make sure progress is white
+        color: '#ffffff !important', 
     },
     saveButtonWrapper: {
         position: 'relative',
@@ -904,7 +903,6 @@ function Alert(props) {
     return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-// Helper function to clean file names
 const cleanFileName = (fileName) => {
     return fileName
         .replace(/[^a-zA-Z0-9\s._-]/g, '')
@@ -912,10 +910,8 @@ const cleanFileName = (fileName) => {
         .trim();
 };
 
-// Use environment variables for API URLs
 const INTERNAL_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4200';
 
-// Add linting function
 const createLinter = (fileName) => {
     const ext = fileName.toLowerCase().split('.').pop();
 
@@ -1033,25 +1029,21 @@ function App() {
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileSearchDialog, setMobileSearchDialog] = useState(false);
     const [saving, setSaving] = useState(false);
-    const classes = useStyles({ saving }); // Pass the actual saving state instead of hardcoded false
+    const classes = useStyles({ saving }); 
 
-    // Add these state variables near the top of the App component
     const [originalContent, setOriginalContent] = useState('');
     const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
-    // Add new state for drag operations
     const [draggedItem, setDraggedItem] = useState(null);
     const [dragOverItem, setDragOverItem] = useState(null);
 
     const [isParentDragOver, setIsParentDragOver] = useState(false);
 
-    // Add new dialog for password authentication
     const [showAuthDialog, setShowAuthDialog] = useState(true);
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authError, setAuthError] = useState('');
 
-    // Add new state variables in App component
     const [permissionsDialog, setPermissionsDialog] = useState(false);
     const [permissions, setPermissions] = useState({
         owner: { read: true, write: true, execute: true },
@@ -1059,10 +1051,8 @@ function App() {
         others: { read: true, write: true, execute: true }
     });
 
-    // Add new state for loading
     const [isLoading, setIsLoading] = useState(true);
 
-    // Add new helper functions
     const calculateNumericPermissions = (perms) => {
         const calculate = (entity) => {
             let value = 0;
@@ -1090,10 +1080,8 @@ function App() {
         };
     };
 
-    // Add loading state for permissions
     const [permissionsLoading, setPermissionsLoading] = useState(false);
 
-    // Add new handler functions
     const handlePermissionsClick = async () => {
         if (!selectedFile) return;
         
@@ -1104,7 +1092,6 @@ function App() {
                 { params: { path: `${currentPath}/${selectedFile.name}` } }
             );
             
-            // Parse the mode from response
             const mode = response.data.mode.replace(/[^\d]/g, '').slice(-3);
             if (!mode || !/^[0-7]{3}$/.test(mode)) {
                 throw new Error('Invalid permissions format received');
@@ -1124,7 +1111,7 @@ function App() {
         if (!selectedFile) return;
         
         try {
-            setPermissionsLoading(true);  // Add loading state
+            setPermissionsLoading(true);  
             await axios.put(
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/permissions`,
                 {
@@ -1136,14 +1123,13 @@ function App() {
             setPermissionsDialog(false);
             showSuccessMessage('Permissions updated successfully');
             await fetchFiles(selectedContainer.Id, currentPath);
-            setPermissionsLoading(false);  // Clear loading state
+            setPermissionsLoading(false);  
         } catch (error) {
-            setPermissionsLoading(false);  // Clear loading state on error
+            setPermissionsLoading(false);  
             showErrorMessage('Error updating permissions: ' + error.message);
         }
     };
 
-    // Add authentication check on mount
     useEffect(() => {
         checkAuthentication();
     }, []);
@@ -1175,28 +1161,23 @@ function App() {
             if (response.data.authenticated) {
                 const token = response.headers['x-dockerflex-auth'];
                 if (token) {
-                    // Save token to localStorage
                     localStorage.setItem('dockerflex-token', token);
-                    // Set token in axios defaults with correct case
                     axios.defaults.headers.common['X-DockerFlex-Auth'] = token;
                 }
                 setIsAuthenticated(true);
                 setShowAuthDialog(false);
                 setAuthError('');
                 
-                // Fetch containers after setting up auth
                 await fetchContainers();
             }
         } catch (error) {
             setAuthError('Invalid password');
-            // Clear token on error
             localStorage.removeItem('dockerflex-token');
             delete axios.defaults.headers.common['X-DockerFlex-Auth'];
             console.error('Authentication error:', error);
         }
     };
 
-    // Add token restoration on app load
     useEffect(() => {
         const token = localStorage.getItem('dockerflex-token');
         if (token) {
@@ -1206,7 +1187,6 @@ function App() {
         }
     }, []);
 
-    // Add this function to handle container restoration
     const restorePreviousState = async () => {
         const savedContainer = localStorage.getItem('selectedContainer');
         const savedPath = localStorage.getItem('currentPath');
@@ -1223,7 +1203,6 @@ function App() {
                 }
             } catch (error) {
                 console.error('Error restoring state:', error);
-                // Clear invalid saved state
                 localStorage.removeItem('selectedContainer');
                 localStorage.removeItem('currentPath');
             }
@@ -1231,13 +1210,11 @@ function App() {
         setIsLoading(false);
     };
 
-    // Modify the fetchContainers function
     const fetchContainers = async () => {
         try {
             const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
             setContainers(response.data);
             
-            // After fetching containers, restore previous state
             await restorePreviousState();
         } catch (error) {
             console.error('Error fetching containers:', error);
@@ -1247,15 +1224,12 @@ function App() {
         }
     };
 
-    // Update the initial useEffect to only fetch if already authenticated
     useEffect(() => {
         if (isAuthenticated) {
-            // Wrap in try-catch to handle potential 401 errors
             const initFetch = async () => {
                 try {
                     await fetchContainers();
                 } catch (error) {
-                    // If we get a 401, try to re-authenticate
                     if (error.response?.status === 401) {
                         setIsAuthenticated(false);
                         setShowAuthDialog(true);
@@ -1293,36 +1267,28 @@ function App() {
         return () => window.removeEventListener('popstate', handleNavigation);
     }, [openDialog, openEditor, currentPath, selectedContainer]);
 
-    // Add keyboard navigation handler
     useEffect(() => {
         const handleKeyPress = (e) => {
-            // Only handle if dialog is open and not editing/renaming
             if (!openDialog || openEditor || isRenaming) return;
 
-            // Ignore if typing in an input field
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
             const key = e.key.toLowerCase();
 
-            // Only handle alphanumeric keys
             if (!key.match(/^[a-z0-9]$/)) return;
 
-            // Update search string and find matching file
             setSearchString(prev => {
                 const newSearch = prev + key;
 
-                // Clear previous timeout
                 if (searchTimeout) {
                     clearTimeout(searchTimeout);
                 }
 
-                // Set new timeout to clear search string after 1 second
                 const timeout = setTimeout(() => {
                     setSearchString('');
                 }, 1000);
                 setSearchTimeout(timeout);
 
-                // Find first matching file regardless of current selection
                 const matchingFile = files.find(file =>
                     file.name.toLowerCase().startsWith(newSearch)
                 );
@@ -1330,7 +1296,6 @@ function App() {
                 if (matchingFile) {
                     setSelectedFile(matchingFile);
 
-                    // Ensure the selected item is visible and not obscured
                     requestAnimationFrame(() => {
                         const selectedElement = document.querySelector(`.${classes.selectedItem}`);
                         const fileList = document.querySelector(`.${classes.fileList}`);
@@ -1343,7 +1308,7 @@ function App() {
 
                             if (elementRect.top < topOffset) {
                                 selectedElement.scrollIntoView(true);
-                                fileList.scrollTop -= (toolbarHeight + 40); // Increased offset to prevent elements being hidden
+                                fileList.scrollTop -= (toolbarHeight + 40); 
                             }
                             selectedElement.scrollIntoView({
                                 behavior: 'smooth',
@@ -1366,34 +1331,26 @@ function App() {
         };
     }, [openDialog, openEditor, isRenaming, files, searchTimeout, classes.selectedItem, classes.fileList]);
 
-    // Add effect to handle keyboard events
     useEffect(() => {
         const handleKeyDown = (e) => {
-            // If permissions dialog is open, don't handle file operations
             if (permissionsDialog) return;
             
-            // Only handle keyboard events when dialog is open and editor is not open
             if (!openDialog || openEditor) return;
 
-            // Handle Enter key for selected file
             if (e.key === 'Enter' && selectedFile) {
                 e.preventDefault();
                 e.stopPropagation();
                 handleFileDoubleClick(selectedFile);
             }
 
-            // Handle Backspace key for navigation
             if (e.key === 'Backspace' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
                 e.preventDefault();
-                // Programmatically click the back button
                 document.querySelector(`.${classes.backButton}`)?.click();
             }
         };
 
-        // Add event listener
         window.addEventListener('keydown', handleKeyDown);
 
-        // Cleanup
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
@@ -1414,7 +1371,7 @@ function App() {
 
             const response = await axios.get(
                 `${INTERNAL_API_URL}/api/containers/${container.Id}/files`,
-                { params: { path: '/' } }  // Remove extra }
+                { params: { path: '/' } }  
             );
 
             if (response.status === 200) {
@@ -1433,12 +1390,10 @@ function App() {
 
     const fetchFiles = async (containerId, path) => {
         try {
-            // First verify container exists and matches
             const containersResponse = await axios.get(`${INTERNAL_API_URL}/api/containers`);
             const containerExists = containersResponse.data.some(c => c.Id === containerId);
 
             if (!containerExists) {
-                // Container no longer exists or was recreated
                 localStorage.removeItem('currentPath');
                 localStorage.removeItem('selectedContainer');
                 setCurrentPath('/');
@@ -1475,7 +1430,6 @@ function App() {
     };
 
     const handleFileDoubleClick = async (file) => {
-        // If currently renaming, ignore double clicks
         if (isRenaming) return;
 
         setPermissionsDialog(false);
@@ -1510,7 +1464,7 @@ function App() {
 
                 if (response.status === 200) {
                     setFileContent(response.data);
-                    setOriginalContent(response.data); // Store original content
+                    setOriginalContent(response.data); 
                     setSelectedFile(file);
                     setOpenEditor(true);
                     window.history.pushState({ type: 'editor', path: currentPath }, '');
@@ -1577,7 +1531,6 @@ function App() {
         if (!selectedFile) return;
 
         try {
-            // Always use the zip endpoint for both files and directories
             const response = await axios.get(
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/download`,
                 {
@@ -1592,7 +1545,6 @@ function App() {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            // Always download as zip
             link.setAttribute('download', `${selectedFile.name}.zip`);
             document.body.appendChild(link);
             link.click();
@@ -1615,24 +1567,18 @@ function App() {
                 }
             );
 
-            // Show success message
             showSuccessMessage('File saved successfully');
 
-            // Update originalContent to match current content after successful save
             setOriginalContent(fileContent);
 
-            // If file was saved and container was restarted
             if (response.data.restarted) {
                 showSuccessMessage('Container restarted successfully');
-                // Wait a bit before reloading to ensure container is up
                 setTimeout(() => {
                     window.location.reload();
                 }, 2000);
             } else {
-                // Refresh file list to get updated sizes
                 await fetchFiles(selectedContainer.Id, currentPath);
 
-                // If the response includes new size, update the selected file
                 if (response.data.size) {
                     setSelectedFile(prev => ({
                         ...prev,
@@ -1640,7 +1586,6 @@ function App() {
                     }));
                 }
 
-                // Just stop loading state after a delay
                 setTimeout(() => {
                     setSaving(false);
                 }, 500);
@@ -1690,7 +1635,6 @@ function App() {
         if (!selectedFile || !newFileName) return;
 
         try {
-            // Don't clean filename here, send it as is
             const oldPath = `${currentPath}/${selectedFile.name}`;
             const newPath = `${currentPath}/${newFileName}`;
 
@@ -1725,10 +1669,8 @@ function App() {
             : classes.normalContainer;
     };
 
-    // Update the sortContainers function
     const sortContainers = (containers) => {
         return [...containers].sort((a, b) => {
-            // Helper function to check if container is red (artifact)
             const isRed = (container) => {
                 const name = container.Names[0].toLowerCase();
                 return name.includes('dockerflex-') || name.includes('buildx_buildkit');
@@ -1739,17 +1681,14 @@ function App() {
             const aIsRunning = a.State === 'running';
             const bIsRunning = b.State === 'running';
 
-            // First priority: Red containers go last
             if (aIsRed !== bIsRed) {
                 return aIsRed ? 1 : -1;
             }
 
-            // Second priority: Running state
             if (aIsRunning !== bIsRunning) {
                 return aIsRunning ? -1 : 1;
             }
 
-            // Finally sort by name
             return a.Names[0].localeCompare(b.Names[0]);
         });
     };
@@ -1757,7 +1696,6 @@ function App() {
 
 
 
-    // Recursively get all files from a directory
     const getAllFilesFromDirectory = async (dirEntry, basePath = '') => {
         const files = [];
         const reader = dirEntry.createReader();
@@ -1796,7 +1734,6 @@ function App() {
         return files;
     };
 
-    // Helper function to determine AppBar color
     const getAppBarClass = () => {
         if (!selectedContainer) return '';
         return isArtifact(selectedContainer)
@@ -1804,19 +1741,15 @@ function App() {
             : classes.appBarNormal;
     };
 
-    // Add handler for dialog close
     const handleDialogClose = (event, reason) => {
         if (reason === 'escapeKeyDown') {
-            // Prevent closing on ESC key
             return;
         }
         handleCloseDialog();
     };
 
-    // Add handler for editor dialog close
     const handleEditorDialogClose = (event, reason) => {
         if (reason === 'escapeKeyDown') {
-            // Prevent closing on ESC key
             return;
         }
         handleCloseEditor();
@@ -1826,7 +1759,6 @@ function App() {
         setOpenUploadDialog(true);
     };
 
-    // Update handleFileSelect function
     const handleFileSelect = async (e) => {
         const files = Array.from(e.target.files);
         const newItems = files
@@ -1848,12 +1780,10 @@ function App() {
         setUploadQueue(prev => [...prev, ...newItems]);
     };
 
-    // Update handleFolderSelect function
     const handleFolderSelect = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
-        // Group files by their relative paths
         const filesByPath = files.reduce((acc, file) => {
             if (!file.webkitRelativePath) return acc;
 
@@ -1865,7 +1795,6 @@ function App() {
                 acc[folderName] = [];
             }
 
-            // Skip hidden and system files
             if (!file.name.startsWith('.') &&
                 !file.name.includes('.DS_Store') &&
                 file.name !== 'Thumbs.db' &&
@@ -1879,7 +1808,6 @@ function App() {
             return acc;
         }, {});
 
-        // Process the first (and should be only) folder
         const folderName = Object.keys(filesByPath)[0];
         if (folderName && filesByPath[folderName]) {
             const folderFiles = filesByPath[folderName];
@@ -1960,21 +1888,17 @@ function App() {
             e.stopPropagation();
             setIsDragging(false);
 
-            // Get files from DataTransfer
             const items = Array.from(e.dataTransfer.items);
 
-            // Only accept files, reject folders
             const filePromises = items
                 .filter(item => item.kind === 'file' && item.webkitGetAsEntry()?.isFile)
                 .map(item => item.getAsFile());
 
             if (filePromises.length === 0) {
-                // Show warning if a folder is dragged
                 showErrorMessage('Please use the folder selection button to upload folders');
                 return;
             }
 
-            // Send files to handleFileSelect
             handleFileSelect({
                 target: {
                     files: filePromises
@@ -2046,7 +1970,7 @@ function App() {
                         </Typography>
                     </div>
 
-                    {/* Upload queue display */}
+                    {}
                     {uploadQueue.length > 0 && (
                         <>
                             <Typography variant="subtitle1" style={{ marginTop: '24px', color: '#e6edf3' }}>
@@ -2095,17 +2019,14 @@ function App() {
         );
     };
 
-    // Add effect to handle initial load
     useEffect(() => {
         const loadInitialState = async () => {
             if (selectedContainer) {
                 try {
-                    // First verify if the container still exists and matches
                     const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
                     const currentContainer = response.data.find(c => c.Id === selectedContainer.Id);
 
                     if (!currentContainer) {
-                        // Container no longer exists or ID changed
                         throw new Error('Container not found or recreated');
                     }
 
@@ -2113,7 +2034,6 @@ function App() {
                     setOpenDialog(true);
                 } catch (error) {
                     console.error('Error loading initial state:', error);
-                    // Clear stored state if there's an error
                     localStorage.removeItem('currentPath');
                     localStorage.removeItem('selectedContainer');
                     setCurrentPath('/');
@@ -2121,7 +2041,6 @@ function App() {
                     setOpenDialog(false);
                     setFiles([]);
 
-                    // Show error message to user
                     showErrorMessage('Container no longer exists or was recreated. Please select a container again.');
                 }
             }
@@ -2130,7 +2049,6 @@ function App() {
         loadInitialState();
     }, []);
 
-    // Update localStorage when path or container changes
     useEffect(() => {
         if (currentPath) {
             localStorage.setItem('currentPath', currentPath);
@@ -2143,17 +2061,14 @@ function App() {
         }
     }, [selectedContainer]);
 
-    // Update the useEffect for fetching host info
     useEffect(() => {
         const getHostInfo = async () => {
             try {
-                // First check environment variable
                 if (import.meta.env.VITE_HOSTNAME) {
                     setHostInfo(import.meta.env.VITE_HOSTNAME);
                     return;
                 }
 
-                // Fallback to API call if no environment variable
                 const response = await axios.get(`${INTERNAL_API_URL}/api/hostname`);
                 setHostInfo(response.data.hostname);
             } catch (error) {
@@ -2166,7 +2081,6 @@ function App() {
     }, []);
 
     const handleNewItemClick = (event) => {
-        // Close mobile menu if open
         if (mobileMenuAnchor) {
             handleMobileMenuClose();
         }
@@ -2198,7 +2112,6 @@ function App() {
                     path: `${currentPath}/${cleanedName}`
                 });
             } else {
-                // Use the new endpoint for file creation
                 await axios.post(`${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/create-file`, {
                     path: `${currentPath}/${cleanedName}`,
                     content: newFileContent
@@ -2215,7 +2128,6 @@ function App() {
         }
     };
 
-    // Add handler for mobile menu
     const handleMobileMenuOpen = (event) => {
         setMobileMenuAnchor(event.currentTarget);
     };
@@ -2224,43 +2136,33 @@ function App() {
         setMobileMenuAnchor(null);
     };
 
-    // Update the handleListItemClick function
     const handleListItemClick = (file) => {
-        // If currently renaming, ignore clicks
         if (isRenaming) return;
 
         const currentTime = new Date().getTime();
         const timeDiff = currentTime - lastClickTime;
 
-        // For mobile devices
         if (window.innerWidth <= 600) {
             if (selectedFile?.name === file.name) {
                 if (timeDiff < 300) {
-                    // Double click - open file/folder
                     handleFileDoubleClick(file);
                 } else {
-                    // Second click after timeout - deselect
                     setSelectedFile(null);
                 }
             } else {
-                // First click on a new item - select it
                 handleFileClick(file);
             }
         } else {
-            // Desktop behavior remains unchanged
             handleFileClick(file);
         }
 
-        // Update last click time
         setLastClickTime(currentTime);
     };
 
-    // Add this function to filter files
     const filteredFiles = files.filter(file =>
         file.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Add handler for search toggle
     const handleSearchToggle = () => {
         if (!searchExpanded) {
             setSearchExpanded(true);
@@ -2283,32 +2185,26 @@ function App() {
         }
     };
 
-    // Add effect to clear search when changing folders
     useEffect(() => {
         setSearchQuery('');
         setSearchExpanded(false);
     }, [currentPath]);
 
-    // Mouse position tracking function
     const handleMouseMove = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Find tooltip element and update its position
         const tooltip = document.querySelector('.cm-tooltip-hover');
         if (tooltip) {
-            // First make it visible
             tooltip.classList.add('visible');
 
-            // Then update position in next frame
             requestAnimationFrame(() => {
                 tooltip.style.left = `${x - (tooltip.offsetWidth / 2)}px`;
                 tooltip.style.top = `${y - 40}px`;
             });
         }
 
-        // Hide tooltip when mouse leaves the element
         const handleMouseLeave = () => {
             if (tooltip) {
                 tooltip.classList.remove('visible');
@@ -2318,7 +2214,6 @@ function App() {
         e.currentTarget.addEventListener('mouseleave', handleMouseLeave, { once: true });
     };
 
-    // Add copy function
     const handleCopy = async () => {
         if (!selectedFile) return;
 
@@ -2326,7 +2221,6 @@ function App() {
             const basePath = currentPath;
             const sourcePath = `${basePath}/${selectedFile.name}`;
 
-            // Generate target name with (copy) suffix
             let targetName = selectedFile.name;
             const ext = targetName.includes('.') ? `.${targetName.split('.').pop()}` : '';
             const baseName = targetName.includes('.') ? targetName.slice(0, -ext.length) : targetName;
@@ -2347,10 +2241,8 @@ function App() {
                 isDirectory: selectedFile.type === 'directory'
             });
 
-            // Refresh file list with current container and path
             await fetchFiles(selectedContainer.Id, currentPath);
 
-            // Deselect the file after copying
             setSelectedFile(null);
 
             setMessageType('success');
@@ -2362,12 +2254,10 @@ function App() {
         }
     };
 
-    // Add a function to check if content has changed
     const hasUnsavedChanges = () => {
         return fileContent !== originalContent;
     };
 
-    // Add effect to handle ESC key
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape' && openEditor) {
@@ -2380,7 +2270,6 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [openEditor, fileContent, originalContent]);
 
-    // Add drag handlers to ListItem component
     const handleDragStart = (e, file) => {
         e.dataTransfer.setData('text/plain', file.name);
         setDraggedItem(file);
@@ -2402,9 +2291,8 @@ function App() {
         e.preventDefault();
         setDragOverItem(null);
 
-        // If no item is being dragged or trying to drop into itself, just reset and return
         if (!draggedItem || draggedItem.name === targetFolder.name) {
-            setDraggedItem(null);  // Reset draggedItem to remove transparency
+            setDraggedItem(null);  
             return;
         }
 
@@ -2418,7 +2306,6 @@ function App() {
                 isDirectory: draggedItem.type === 'directory'
             });
 
-            // Refresh file list
             await fetchFiles(selectedContainer.Id, currentPath);
             setSelectedFile(null);
             showSuccessMessage(`Successfully moved ${draggedItem.name} to ${targetFolder.name}`);
@@ -2426,10 +2313,9 @@ function App() {
             showErrorMessage('Error moving file: ' + (error.response?.data?.error || error.message));
         }
 
-        setDraggedItem(null);  // Reset draggedItem after operation (success or failure)
+        setDraggedItem(null);  
     };
 
-    // Also add cleanup on drag end
     const handleDragEnd = () => {
         setDraggedItem(null);
         setDragOverItem(null);
@@ -2467,7 +2353,6 @@ function App() {
                 isDirectory: draggedItem.type === 'directory'
             });
 
-            // Refresh file list
             await fetchFiles(selectedContainer.Id, currentPath);
             setSelectedFile(null);
             showSuccessMessage(`Successfully moved ${draggedItem.name} to parent folder`);
@@ -2478,7 +2363,6 @@ function App() {
         setDraggedItem(null);
     };
 
-    // Add keyboard event handler for permissions dialog
     const handlePermissionsKeyDown = (event) => {
         if (event.key === 'Escape') {
             setPermissionsDialog(false);
@@ -2489,7 +2373,6 @@ function App() {
         }
     };
 
-    // Update permissions dialog
     <Dialog
         open={permissionsDialog}
         onClose={() => setPermissionsDialog(false)}
@@ -2505,7 +2388,7 @@ function App() {
             File Permissions - {selectedFile?.name}
         </DialogTitle>
         <DialogContent style={{ paddingTop: '20px' }}>
-            {/* ... existing content ... */}
+            {}
         </DialogContent>
     </Dialog>
 
@@ -2721,9 +2604,9 @@ function App() {
                                         {currentPath}
                                     </Typography>
                                 </div>
-                                {/* Desktop Actions */}
+                                {}
                                 <div className={classes.toolbarActions}>
-                                    {/* Search Group */}
+                                    {}
                                     <div className={`${classes.searchContainer} ${searchExpanded ? 'expanded' : ''}`}>
                                         <IconButton
                                             size="small"
@@ -2756,7 +2639,7 @@ function App() {
                                         )}
                                     </div>
 
-                                    {/* Vertical Divider after Search */}
+                                    {}
                                     <div style={{
                                         width: '1px',
                                         height: '20px',
@@ -2764,7 +2647,7 @@ function App() {
                                         margin: '0 4px'
                                     }} />
 
-                                    {/* File Creation Group */}
+                                    {}
                                     <div style={{
                                         display: 'flex',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -2819,7 +2702,7 @@ function App() {
                                         </Tooltip>
                                     </div>
 
-                                    {/* Vertical Divider */}
+                                    {}
                                     <div style={{
                                         width: '1px',
                                         height: '20px',
@@ -2827,7 +2710,7 @@ function App() {
                                         margin: '0 4px'
                                     }} />
 
-                                    {/* File Operations Group */}
+                                    {}
                                     <div style={{
                                         display: 'flex',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -2888,7 +2771,7 @@ function App() {
                                             </span>
                                         </Tooltip>
 
-                                        {/* Add to the toolbar actions (near other file operation buttons) */}
+                                        {}
                                         <Tooltip title="Permissions" arrow>
                                             <span style={{ margin: '0 2px' }}>
                                                 <IconButton
@@ -2903,7 +2786,7 @@ function App() {
                                         </Tooltip>
                                     </div>
 
-                                    {/* Vertical Divider */}
+                                    {}
                                     <div style={{
                                         width: '1px',
                                         height: '20px',
@@ -2911,7 +2794,7 @@ function App() {
                                         margin: '0 4px'
                                     }} />
 
-                                    {/* Dialog Control Group */}
+                                    {}
                                     <div style={{
                                         display: 'flex',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -2932,7 +2815,7 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Mobile Menu Button */}
+                                {}
                                 <IconButton
                                     className={classes.mobileMenuButton}
                                     color="inherit"
@@ -2942,7 +2825,7 @@ function App() {
                                     <MenuIcon />
                                 </IconButton>
 
-                                {/* Mobile Menu */}
+                                {}
                                 <Menu
                                     anchorEl={mobileMenuAnchor}
                                     keepMounted
@@ -2953,7 +2836,6 @@ function App() {
                                     <MenuItem
                                         onClick={() => {
                                             handleMobileMenuClose();
-                                            // Open a dialog for mobile search
                                             setMobileSearchDialog(true);
                                         }}
                                         className={classes.mobileMenuItem}
@@ -3387,7 +3269,7 @@ function App() {
                         </DialogActions>
                     </Dialog>
 
-                    {/* Add new dialog for permissions */}
+                    {}
                     <Dialog
                         open={permissionsDialog}
                         onClose={() => setPermissionsDialog(false)}
@@ -3432,7 +3314,6 @@ function App() {
                                                                     }
                                                                 };
                                                                 setPermissions(newPermissions);
-                                                                // Force update numeric input
                                                                 const numericField = document.querySelector('input[type="text"][pattern="[0-7]{0,3}"]');
                                                                 if (numericField) {
                                                                     numericField.value = calculateNumericPermissions(newPermissions);
@@ -3456,7 +3337,6 @@ function App() {
                                                                     }
                                                                 };
                                                                 setPermissions(newPermissions);
-                                                                // Force update numeric input
                                                                 const numericField = document.querySelector('input[type="text"][pattern="[0-7]{0,3}"]');
                                                                 if (numericField) {
                                                                     numericField.value = calculateNumericPermissions(newPermissions);
@@ -3480,7 +3360,6 @@ function App() {
                                                                     }
                                                                 };
                                                                 setPermissions(newPermissions);
-                                                                // Force update numeric input
                                                                 const numericField = document.querySelector('input[type="text"][pattern="[0-7]{0,3}"]');
                                                                 if (numericField) {
                                                                     numericField.value = calculateNumericPermissions(newPermissions);
@@ -3500,11 +3379,9 @@ function App() {
                                             onChange={(e) => {
                                                 const value = e.target.value;
                                                 if (/^[0-7]{0,3}$/.test(value)) {
-                                                    // Update permissions immediately for any valid input
                                                     if (value.length === 3) {
                                                         setPermissions(parseNumericPermissions(value));
                                                     }
-                                                    // Allow the input to be updated
                                                     e.target.value = value;
                                                 }
                                             }}

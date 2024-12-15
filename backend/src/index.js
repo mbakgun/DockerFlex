@@ -24,27 +24,22 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Add authentication middleware
 const authMiddleware = (req, res, next) => {
     const masterPassword = process.env.MASTER_PASSWORD;
     
-    // If no master password is set, skip authentication
     if (!masterPassword) {
         return next();
     }
 
-    // Skip authentication for the auth endpoint itself
     if (req.path === '/api/auth') {
         return next();
     }
 
-    // Change from Authorization to X-DockerFlex-Auth
     const authHeader = req.headers['x-dockerflex-auth'];
     if (!authHeader) {
         return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Remove Bearer prefix check since we're using a custom header
     if (authHeader !== masterPassword) {
         return res.status(401).json({ error: 'Invalid authentication' });
     }
@@ -52,7 +47,6 @@ const authMiddleware = (req, res, next) => {
     next();
 };
 
-// Update auth endpoint
 app.post('/api/auth', (req, res) => {
     const masterPassword = process.env.MASTER_PASSWORD;
     const { password } = req.body;
@@ -62,7 +56,6 @@ app.post('/api/auth', (req, res) => {
     }
 
     if (password === masterPassword) {
-        // Set custom header instead of Authorization
         res.set('X-DockerFlex-Auth', masterPassword);
         return res.json({ authenticated: true });
     }
@@ -70,10 +63,8 @@ app.post('/api/auth', (req, res) => {
     res.status(401).json({ error: 'Invalid password' });
 });
 
-// Apply authentication middleware to all routes
 app.use('/api', authMiddleware);
 
-// Add error handling middleware
 const errorHandler = (err, req, res, next) => {
     console.error('Error:', err);
     res.status(500).json({
@@ -82,7 +73,6 @@ const errorHandler = (err, req, res, next) => {
     });
 };
 
-// Add process error handlers
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
@@ -91,10 +81,8 @@ process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
 });
 
-// Add helper function at the top level
 const execCommand = async (container, command, options = {}) => {
     try {
-        // First try with sudo
         const sudoExec = await container.exec({
             Cmd: ['sh', '-c', `command -v sudo && sudo ${command} || ${command}`],
             AttachStdout: true,
@@ -104,7 +92,6 @@ const execCommand = async (container, command, options = {}) => {
         return sudoExec;
     } catch (error) {
         console.warn(`Failed to execute with sudo: ${error.message}`);
-        // Fallback to direct command
         return container.exec({
             Cmd: ['sh', '-c', command],
             AttachStdout: true,
@@ -114,7 +101,6 @@ const execCommand = async (container, command, options = {}) => {
     }
 };
 
-// List all containers
 app.get('/api/containers', async (req, res) => {
     try {
         const containers = await docker.listContainers({all: true});
@@ -124,13 +110,11 @@ app.get('/api/containers', async (req, res) => {
     }
 });
 
-// Get container files
 app.get('/api/containers/:id/files', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
         const path = req.query.path || '/';
 
-        // First verify container exists and is running
         try {
             const containerInfo = await container.inspect();
             if (containerInfo.State.Status !== 'running') {
@@ -185,7 +169,6 @@ app.get('/api/containers/:id/files', async (req, res) => {
                                 return null;
                             }
 
-                            // Safe access to array elements with defaults
                             const permissions = parts[0] || '-';
                             const size = parts[4] || '0';
                             const name = parts[8] ? parts[8].replace(/^"(.*)"$/, '$1') : '';
@@ -226,14 +209,12 @@ app.get('/api/containers/:id/files', async (req, res) => {
     }
 });
 
-// Get file content endpoint
 app.get('/api/containers/:id/files/content', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
         const {path} = req.query;
         const decodedPath = decodeURIComponent(path);
 
-        // Get file content directly from container using exec
         const exec = await container.exec({
             Cmd: ['cat', decodedPath],
             AttachStdout: true,
@@ -244,19 +225,15 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
         let fileContent = '';
         let errorContent = '';
 
-        // Collect all data chunks
         stream.on('data', (chunk) => {
             const buffer = Buffer.from(chunk);
-            // Check if this is stderr data (usually has a header byte of 2)
             if (buffer[0] === 2) {
                 errorContent += buffer.slice(8).toString();
             } else {
-                // For stdout (header byte of 1) or no header
                 fileContent += buffer.slice(buffer[0] === 1 ? 8 : 0).toString();
             }
         });
 
-        // Handle end of stream
         stream.on('end', () => {
             if (errorContent) {
                 res.status(500).json({ error: errorContent });
@@ -265,7 +242,6 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
             }
         });
 
-        // Handle stream errors
         stream.on('error', (error) => {
             console.error('Stream error:', error);
             if (!res.headersSent) {
@@ -279,10 +255,8 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
     }
 });
 
-// Add helper function for executing commands with multiple methods
 const executeWithFallback = async (container, commands, options = {}) => {
     const methods = [
-        // Method 1: Direct command
         async () => {
             const exec = await container.exec({
                 Cmd: Array.isArray(commands) ? commands : ['sh', '-c', commands],
@@ -292,7 +266,6 @@ const executeWithFallback = async (container, commands, options = {}) => {
             });
             return exec.start();
         },
-        // Method 2: Try with sudo
         async () => {
             const exec = await container.exec({
                 Cmd: ['sh', '-c', `command -v sudo && sudo ${Array.isArray(commands) ? commands.join(' ') : commands} || exit 1`],
@@ -302,7 +275,6 @@ const executeWithFallback = async (container, commands, options = {}) => {
             });
             return exec.start();
         },
-        // Method 3: Try changing ownership first
         async () => {
             const cmd = Array.isArray(commands) ? commands.join(' ') : commands;
             const exec = await container.exec({
@@ -327,24 +299,19 @@ const executeWithFallback = async (container, commands, options = {}) => {
     throw new Error(`Operation failed: ${lastError?.message || 'Permission denied'}. Location might be read-only or restricted.`);
 };
 
-// Update file content saving endpoint
 app.put('/api/containers/:id/files', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
         const { path, content, restart } = req.body;
 
-        // Create temporary directory and file
         const tempDir = `/tmp/edit-${Date.now()}`;
         const tempFile = `${tempDir}/${path.split('/').pop()}`;
         const tempTar = `${tempDir}/content.tar`;
 
         try {
-            // Create temp directory
             await fsPromises.mkdir(tempDir, { recursive: true, mode: 0o777 });
-            // Write content to temp file
             await fsPromises.writeFile(tempFile, content, { mode: 0o666 });
 
-            // Create tar archive
             const output = require('fs').createWriteStream(tempTar);
             const archive = archiver('tar');
             archive.pipe(output);
@@ -352,24 +319,19 @@ app.put('/api/containers/:id/files', async (req, res) => {
             await archive.finalize();
             await new Promise(resolve => output.on('close', resolve));
 
-            // Read tar file
             const tarBuffer = await fsPromises.readFile(tempTar);
 
-            // Create directory and set permissions
             const targetDir = path.substring(0, path.lastIndexOf('/'));
             await executeCommandWithPrivileges(container, `mkdir -p "${targetDir}"`);
             await executeCommandWithPrivileges(container, `chmod 777 "${targetDir}"`);
 
-            // Upload file
             await container.putArchive(tarBuffer, {
                 path: targetDir,
                 noOverwriteDirNonDir: true
             });
 
-            // Set file permissions
             await executeCommandWithPrivileges(container, `chmod 666 "${path}"`);
 
-            // Get file size
             const exec = await container.exec({
                 Cmd: ['stat', '-f', '%z', path],
                 AttachStdout: true,
@@ -387,13 +349,11 @@ app.put('/api/containers/:id/files', async (req, res) => {
                 stream.on('error', reject);
             });
 
-            // If restart is requested, restart the container
             if (restart) {
                 try {
                     await container.restart();
                 } catch (restartError) {
                     console.error('Error restarting container:', restartError);
-                    // Continue even if restart fails
                 }
             }
 
@@ -404,7 +364,6 @@ app.put('/api/containers/:id/files', async (req, res) => {
             });
 
         } finally {
-            // Clean up temp files
             try {
                 await fsPromises.rm(tempDir, { recursive: true, force: true });
             } catch (err) {
@@ -420,15 +379,12 @@ app.put('/api/containers/:id/files', async (req, res) => {
     }
 });
 
-// Add this helper function for robust command execution
 const executeCommandWithPrivileges = async (container, command, options = {}) => {
     const privilegedExec = await container.exec({
         Cmd: ['sh', '-c', `
-            # Try to elevate privileges
             if command -v sudo >/dev/null 2>&1; then
                 sudo sh -c '${command.replace(/'/g, "'\\''")}' 2>&1
             else
-                # Try direct execution as root
                 sh -c '${command.replace(/'/g, "'\\''")}' 2>&1
             fi
         `],
@@ -457,13 +413,11 @@ const executeCommandWithPrivileges = async (container, command, options = {}) =>
     return output;
 };
 
-// Update rename endpoint
 app.put('/api/containers/:id/files/rename', async (req, res) => {
     try {
         const container = docker.getContainer(id);
         const {oldPath, newPath} = req.body;
 
-        // First ensure parent directory is writable
         const parentDir = newPath.substring(0, newPath.lastIndexOf('/'));
         const verifyCmd = `
             if [ -d "${parentDir}" ]; then
@@ -497,7 +451,6 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
             throw new Error(`Verification failed: ${verifyOutput}`);
         }
 
-        // Perform rename with elevated privileges
         const moveCmd = `mv "${oldPath}" "${newPath}" 2>/dev/null && chmod -R 777 "${newPath}" 2>/dev/null && echo "SUCCESS: Rename completed"`;
 
         const moveExec = await execCommand(container, moveCmd, {
@@ -535,7 +488,6 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
     }
 });
 
-// Update folder creation endpoint
 app.post('/api/containers/:id/create-folder', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
@@ -548,7 +500,6 @@ app.post('/api/containers/:id/create-folder', async (req, res) => {
             });
         }
 
-        // Try to create directory with elevated privileges
         await executeCommandWithPrivileges(container, `
             parent_dir="$(dirname "${path}")" &&
             mkdir -p "$parent_dir" &&
@@ -558,7 +509,6 @@ app.post('/api/containers/:id/create-folder', async (req, res) => {
             chown -R root:root "${path}"
         `);
 
-        // Verify directory was created
         const verifyOutput = await executeCommandWithPrivileges(container, `test -d "${path}" && echo "SUCCESS"`);
         
         if (!verifyOutput.includes('SUCCESS')) {
@@ -578,14 +528,12 @@ app.post('/api/containers/:id/create-folder', async (req, res) => {
     }
 });
 
-// Update delete endpoint to use the new helper
 app.delete('/api/containers/:id/files', async (req, res) => {
     try {
         const {id} = req.params;
         const {path, isDirectory} = req.body;
         const container = docker.getContainer(id);
 
-        // Try to delete with elevated privileges
         await executeCommandWithPrivileges(container, `
             parent_dir="$(dirname "${path}")" &&
             chmod -R 777 "$parent_dir" 2>/dev/null || true &&
@@ -594,7 +542,6 @@ app.delete('/api/containers/:id/files', async (req, res) => {
             echo "DELETED"
         `);
 
-        // Verify deletion
         try {
             await executeCommandWithPrivileges(container, `test ! -e "${path}"`);
             res.json({
@@ -613,7 +560,6 @@ app.delete('/api/containers/:id/files', async (req, res) => {
     }
 });
 
-// Update file upload endpoint
 app.post('/api/containers/:id/files', upload.single('file'), async (req, res) => {
     try {
         const {id} = req.params;
@@ -624,7 +570,6 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
             return res.status(400).json({error: 'No file uploaded'});
         }
 
-        // Check write permissions
         try {
             await executeWithFallback(container, ['test', '-w', uploadPath || '/']);
         } catch (error) {
@@ -638,11 +583,9 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
         const targetPath = `${uploadPath || '/'}${uploadPath?.endsWith('/') ? '' : '/'}${originalname}`;
 
         try {
-            // Create directory with proper permissions
             await executeWithFallback(container, `mkdir -p "${uploadPath}"`);
             await executeWithFallback(container, `chmod 777 "${uploadPath}"`);
 
-            // Upload file
             const fileContent = await fsPromises.readFile(filePath);
             const stream = await executeWithFallback(container, `cat > "${targetPath}"`, {
                 AttachStdin: true
@@ -655,7 +598,6 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
                 stream.on('end', resolve);
             });
 
-            // Set file permissions
             await executeWithFallback(container, `chmod 666 "${targetPath}"`);
 
             res.json({
@@ -663,7 +605,6 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
                 filename: originalname
             });
         } finally {
-            // Clean up temp file
             await fsPromises.unlink(filePath).catch(console.error);
         }
     } catch (error) {
@@ -675,7 +616,6 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
     }
 });
 
-// Updated endpoint for folder upload
 app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res) => {
     try {
         const {id} = req.params;
@@ -687,14 +627,12 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
             return res.status(400).json({error: 'No files uploaded'});
         }
 
-        // First collect all directory paths
         const allDirs = new Set();
         filePaths.forEach(path => {
             const fullPath = `${basePath}/${path}`;
             const dirPath = fullPath.substring(0, fullPath.lastIndexOf('/'));
             allDirs.add(dirPath);
 
-            // Also add parent directories
             let parentDir = dirPath;
             while (parentDir.includes('/')) {
                 parentDir = parentDir.substring(0, parentDir.lastIndexOf('/'));
@@ -702,10 +640,8 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
             }
         });
 
-        // Create directories in order and unique
         const sortedDirs = Array.from(allDirs).sort((a, b) => a.split('/').length - b.split('/').length);
 
-        // First create all directories
         for (const dir of sortedDirs) {
             const mkdirExec = await container.exec({
                 Cmd: ['mkdir', '-p', dir],
@@ -715,7 +651,6 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
             await mkdirExec.start();
         }
 
-        // Then upload files
         for (let i = 0; i < req.files.length; i++) {
             const file = req.files[i];
             const relativePath = filePaths[i];
@@ -731,13 +666,10 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
             }
 
             try {
-                // Read file content
                 const fileContent = await fsPromises.readFile(file.path);
 
-                // Create full path
                 const fullPath = `${basePath}/${relativePath}`;
 
-                // Copy file to container
                 const execWrite = await container.exec({
                     Cmd: ['sh', '-c', `cat > "${fullPath}"`],
                     AttachStdin: true,
@@ -772,12 +704,10 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
                 console.error(`Error processing file ${fullPath}:`, error);
                 throw error;
             } finally {
-                // Clean up temp file
                 await fsPromises.unlink(file.path).catch(console.error);
             }
         }
 
-        // Recursively set permissions for all directories
         const chmodExec = await container.exec({
             Cmd: ['chmod', '-R', '777', basePath],
             AttachStdout: true,
@@ -785,7 +715,6 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
         });
         await chmodExec.start();
 
-        // Verify folder structure
         const verifyExec = await container.exec({
             Cmd: ['find', basePath, '-type', 'f'],
             AttachStdout: true,
@@ -815,7 +744,6 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
     }
 });
 
-// Rename file or directory
 app.put('/api/containers/:id/files/rename', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
@@ -846,7 +774,6 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
     }
 });
 
-// Add container start endpoint
 app.post('/api/containers/:id/start', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
@@ -857,26 +784,21 @@ app.post('/api/containers/:id/start', async (req, res) => {
     }
 });
 
-// Update folder download endpoint
 app.get('/api/containers/:id/folders/download', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
         const {path} = req.query;
         const folderName = path.split('/').pop();
 
-        // Create zip archive
         const archive = archiver('zip', {
             zlib: {level: 9}
         });
 
-        // Set response headers
         res.attachment(`${folderName}.zip`);
         res.setHeader('Content-Type', 'application/zip');
 
-        // Pipe archive to response
         archive.pipe(res);
 
-        // First, get all files recursively
         const execList = await container.exec({
             Cmd: ['find', path, '-type', 'f'],
             AttachStdout: true,
@@ -893,13 +815,10 @@ app.get('/api/containers/:id/folders/download', async (req, res) => {
             streamList.on('end', resolve);
         });
 
-        // Get all files
         const files = fileList.trim().split('\n').filter(Boolean);
 
-        // Process each file
         for (const filePath of files) {
             try {
-                // Get file content
                 const execFile = await container.exec({
                     Cmd: ['cat', filePath],
                     AttachStdout: true,
@@ -917,10 +836,8 @@ app.get('/api/containers/:id/folders/download', async (req, res) => {
 
                 const content = Buffer.concat(chunks);
 
-                // Calculate relative path for zip
                 const relativePath = filePath.slice(path.length + 1);
 
-                // Get file permissions
                 const execStat = await container.exec({
                     Cmd: ['stat', '-c', '%a', filePath],
                     AttachStdout: true,
@@ -936,7 +853,6 @@ app.get('/api/containers/:id/folders/download', async (req, res) => {
                     statStream.on('end', resolve);
                 });
 
-                // Add file to zip with proper mode
                 archive.append(content, {
                     name: relativePath,
                     mode: parseInt(mode.trim(), 8)
@@ -947,7 +863,6 @@ app.get('/api/containers/:id/folders/download', async (req, res) => {
             }
         }
 
-        // Finalize archive
         await archive.finalize();
 
     } catch (error) {
@@ -956,7 +871,6 @@ app.get('/api/containers/:id/folders/download', async (req, res) => {
     }
 });
 
-// Update createDirectoryRecursive function
 const createDirectoryRecursive = async (container, dirPath) => {
     const parts = dirPath.split('/').filter(Boolean);
     let currentPath = '';
@@ -970,7 +884,6 @@ const createDirectoryRecursive = async (container, dirPath) => {
                 AttachStderr: true
             });
 
-            // Start exec and wait for completion
             const stream = await exec.start();
             await new Promise((resolve, reject) => {
                 let error = '';
@@ -994,7 +907,6 @@ const createDirectoryRecursive = async (container, dirPath) => {
     }
 };
 
-// Update upload endpoint
 app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
@@ -1007,18 +919,14 @@ app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res)
             const targetPath = paths[i];
 
             try {
-                // Extract directory path from the full file path
                 const dirPath = targetPath.split('/').slice(0, -1).join('/');
 
-                // Create directory structure if it doesn't exist
                 if (dirPath) {
                     await createDirectoryRecursive(container, dirPath);
                 }
 
-                // Read file content using fsPromises
                 const fileContent = await fsPromises.readFile(file.path);
 
-                // Create and write file using exec
                 const exec = await container.exec({
                     Cmd: ['sh', '-c', `cat > "${targetPath}"`],
                     AttachStdin: true,
@@ -1031,7 +939,6 @@ app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res)
                     stdin: true
                 });
 
-                // Write file content
                 await new Promise((resolve, reject) => {
                     stream.on('error', reject);
                     stream.write(fileContent);
@@ -1051,7 +958,6 @@ app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res)
                     });
                 });
 
-                // Set permissions
                 const chmodExec = await container.exec({
                     Cmd: ['chmod', '644', targetPath],
                     AttachStdout: true,
@@ -1091,7 +997,6 @@ app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res)
         console.error('Upload error:', error);
         res.status(500).json({error: error.message});
     } finally {
-        // Cleanup temporary files using fsPromises
         for (const file of req.files) {
             try {
                 await fsPromises.unlink(file.path);
@@ -1102,21 +1007,16 @@ app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res)
     }
 });
 
-// Update hostname endpoint
 app.get('/api/hostname', (req, res) => {
     try {
-        // Try to get Docker Desktop hostname
         const execSync = require('child_process').execSync;
         let hostname = 'Docker Desktop';
 
-        // Try different methods to get Docker host name
         try {
-            // First try Docker info
             const dockerInfo = execSync('docker info --format "{{.Name}}"').toString().trim();
             if (dockerInfo) hostname = dockerInfo;
         } catch (error) {
             try {
-                // Then try environment variable
                 const dockerHost = process.env.DOCKER_HOST;
                 if (dockerHost) {
                     hostname = new URL(dockerHost).hostname;
@@ -1132,20 +1032,17 @@ app.get('/api/hostname', (req, res) => {
     }
 });
 
-// Add error handler middleware
 app.use(errorHandler);
 
-// Update server startup
 const PORT = process.env.PORT || 4200;
 const server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    
 });
 
-// Handle server errors
 server.on('error', (err) => {
     console.error('Server error:', err);
     if (err.code === 'EADDRINUSE') {
-        console.log('Port is already in use. Trying again...');
+        
         setTimeout(() => {
             server.close();
             server.listen(PORT);
@@ -1153,16 +1050,14 @@ server.on('error', (err) => {
     }
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
-    console.log('SIGTERM received. Shutting down gracefully...');
+    
     server.close(() => {
-        console.log('Server closed');
+        
         process.exit(0);
     });
 });
 
-// Add this new endpoint
 app.get('/api/containers/:id/download', async (req, res) => {
     const {id} = req.params;
     const {path, isDirectory} = req.query;
@@ -1170,23 +1065,17 @@ app.get('/api/containers/:id/download', async (req, res) => {
     try {
         const container = docker.getContainer(id);
 
-        // Create a zip archive
         const archive = archiver('zip');
 
-        // Set response headers
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', `attachment; filename="${path.split('/').pop()}.zip"`);
 
-        // Pipe archive data to response
         archive.pipe(res);
 
-        // Get tar stream from Docker
         const tarStream = await container.getArchive({path});
 
-        // Create extract stream
         const extract = require('tar-stream').extract();
 
-        // Process each file from the tar
         extract.on('entry', async (header, stream, next) => {
             const chunks = [];
 
@@ -1195,19 +1084,16 @@ app.get('/api/containers/:id/download', async (req, res) => {
             stream.on('end', () => {
                 const content = Buffer.concat(chunks);
 
-                // Skip if this is a directory
                 if (header.type !== 'file') {
                     next();
                     return;
                 }
 
-                // Remove the base path from the filename
                 let filename = header.name;
                 if (filename.startsWith('./')) {
                     filename = filename.substring(2);
                 }
 
-                // Add file to zip archive
                 archive.append(content, {
                     name: filename,
                     store: true
@@ -1219,12 +1105,10 @@ app.get('/api/containers/:id/download', async (req, res) => {
             stream.resume();
         });
 
-        // When tar extraction is complete, finalize the zip
         extract.on('finish', () => {
             archive.finalize();
         });
 
-        // Pipe tar stream to extract
         tarStream.pipe(extract);
 
     } catch (error) {
@@ -1235,7 +1119,6 @@ app.get('/api/containers/:id/download', async (req, res) => {
     }
 });
 
-// Add new restart endpoint
 app.post('/api/containers/:id/restart', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
@@ -1246,24 +1129,20 @@ app.post('/api/containers/:id/restart', async (req, res) => {
     }
 });
 
-// Add copy endpoint
 app.post('/api/containers/:id/copy', async (req, res) => {
     try {
         const { id } = req.params;
         const { sourcePath, targetPath, isDirectory } = req.body;
         const container = docker.getContainer(id);
 
-        // Get target directory path
         const targetDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
 
-        // First ensure parent directory is writable with elevated privileges
         await executeCommandWithPrivileges(container, `
             mkdir -p "${targetDir}" &&
             chmod -R 777 "${targetDir}"
         `);
 
         if (isDirectory) {
-            // For directories, use cp -a to preserve permissions and ownership
             await executeCommandWithPrivileges(container, `
                 if [ -d "${targetPath}" ]; then
                     rm -rf "${targetPath}"
@@ -1272,14 +1151,12 @@ app.post('/api/containers/:id/copy', async (req, res) => {
                 chmod -R 777 "${targetPath}"
             `);
         } else {
-            // For files, use cp with explicit permissions
             await executeCommandWithPrivileges(container, `
                 cp "${sourcePath}" "${targetPath}" &&
                 chmod 666 "${targetPath}"
             `);
         }
 
-        // Verify the copy operation with more detailed output
         const verifyOutput = await executeCommandWithPrivileges(container, `
             if [ -e "${targetPath}" ]; then
                 echo "SUCCESS: $(ls -l "${targetPath}")"
@@ -1306,7 +1183,6 @@ app.post('/api/containers/:id/copy', async (req, res) => {
     }
 });
 
-// Add new endpoint for moving files
 app.post('/api/containers/:id/move', async (req, res) => {
     const { id } = req.params;
     const { sourcePath, targetPath, isDirectory } = req.body;
@@ -1314,7 +1190,6 @@ app.post('/api/containers/:id/move', async (req, res) => {
     try {
         const container = docker.getContainer(id);
         
-        // First verify target directory exists and set permissions
         const verifyCmd = `
             target_dir="$(dirname "${targetPath}")"
             if [ -d "$target_dir" ]; then
@@ -1348,7 +1223,6 @@ app.post('/api/containers/:id/move', async (req, res) => {
             throw new Error(`Verification failed: ${verifyOutput}`);
         }
 
-        // Move the file/directory with elevated privileges
         const moveCmd = `mv "${sourcePath}" "${targetPath}" 2>/dev/null && chmod -R 777 "${targetPath}" 2>/dev/null && echo "SUCCESS: Move completed"`;
         
         const moveExec = await execCommand(container, moveCmd, {
@@ -1372,7 +1246,6 @@ app.post('/api/containers/:id/move', async (req, res) => {
             throw new Error('Move operation failed');
         }
 
-        // Final verification
         const verifyFinalCmd = `test -e "${targetPath}" && echo "SUCCESS: Final verification passed"`;
         
         const verifyFinalExec = await execCommand(container, verifyFinalCmd, {
@@ -1406,28 +1279,24 @@ app.post('/api/containers/:id/move', async (req, res) => {
     }
 }); 
 
-// Add new endpoint for creating files with content
 app.post('/api/containers/:id/create-file', async (req, res) => {
     try {
         const { id } = req.params;
         const { path, content } = req.body;
         const container = docker.getContainer(id);
 
-        // First ensure parent directory exists and is writable
         const parentDir = path.substring(0, path.lastIndexOf('/'));
         await executeCommandWithPrivileges(container, `
             mkdir -p "${parentDir}" &&
             chmod 777 "${parentDir}"
         `);
 
-        // Write file content
         const writeCmd = `cat > "${path}" << 'EOF'
 ${content}
 EOF`;
 
         await executeCommandWithPrivileges(container, writeCmd);
 
-        // Verify file was created and set permissions
         await executeCommandWithPrivileges(container, `
             test -f "${path}" &&
             chmod 666 "${path}" &&
@@ -1447,7 +1316,6 @@ EOF`;
     }
 });
 
-// Add permissions endpoints
 app.get('/api/containers/:id/permissions', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
@@ -1481,7 +1349,6 @@ app.get('/api/containers/:id/permissions', async (req, res) => {
             throw new Error(error);
         }
 
-        // Clean and validate the output
         const mode = output.trim().replace(/[^\d]/g, '').slice(-3);
         if (!mode || !/^[0-7]{3}$/.test(mode)) {
             throw new Error('Invalid permissions format');
@@ -1503,19 +1370,15 @@ app.put('/api/containers/:id/permissions', async (req, res) => {
             return res.status(400).json({ error: 'Path and mode are required' });
         }
 
-        // Validate mode format (should be 3 digits between 0-7)
         if (!/^[0-7]{3}$/.test(mode)) {
             return res.status(400).json({ error: 'Invalid mode format. Should be 3 digits between 0-7' });
         }
 
-        // Use executeCommandWithPrivileges for better permission handling
         await executeCommandWithPrivileges(container, `chmod ${mode} "${path.trim()}"`);
         
-        // Verify the permissions were set correctly
         const verifyOutput = await executeCommandWithPrivileges(container, `stat -c '%a' "${path.trim()}"`);
         const actualMode = verifyOutput.trim().replace(/[^\d]/g, '').slice(-3);
         
-        // Consider the operation successful if we can read the permissions
         if (!actualMode || !/^[0-7]{3}$/.test(actualMode)) {
             throw new Error('Failed to read permissions after change');
         }
