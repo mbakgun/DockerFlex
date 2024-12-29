@@ -1,7 +1,6 @@
 <div align="center">
   <img src="assets/logo.webp" alt="DockerFlex Logo" width="600"/>
   
-  # DockerFlex
   
   > The missing file manager for Docker containers
   

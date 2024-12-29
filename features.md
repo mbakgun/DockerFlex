@@ -1,4 +1,3 @@
-# DockerFlex Features
 
 ## Security & Authentication
 

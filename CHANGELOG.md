@@ -1,4 +1,3 @@
-# Changelog
 
 All notable changes to DockerFlex will be documented in this file.
 

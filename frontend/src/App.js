@@ -620,7 +620,7 @@ const useStyles = makeStyles((theme) => ({
                     margin: 0,
                 },
                 '& .MuiButton-label > span:last-child': {
-                    display: 'none', 
+                    display: 'none',
                 },
             },
         },
@@ -769,7 +769,7 @@ const useStyles = makeStyles((theme) => ({
         left: '50%',
         marginTop: -12,
         marginLeft: -12,
-        color: '#ffffff !important', 
+        color: '#ffffff !important',
     },
     saveButtonWrapper: {
         position: 'relative',
@@ -1029,7 +1029,7 @@ function App() {
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileSearchDialog, setMobileSearchDialog] = useState(false);
     const [saving, setSaving] = useState(false);
-    const classes = useStyles({ saving }); 
+    const classes = useStyles({ saving });
 
     const [originalContent, setOriginalContent] = useState('');
     const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
@@ -1061,7 +1061,7 @@ function App() {
             if (entity.execute) value += 1;
             return value;
         };
-        
+
         return `${calculate(perms.owner)}${calculate(perms.group)}${calculate(perms.others)}`;
     };
 
@@ -1071,7 +1071,7 @@ function App() {
             write: (value & 2) === 2,
             execute: (value & 1) === 1
         });
-        
+
         const digits = numeric.toString().padStart(3, '0');
         return {
             owner: parseBits(parseInt(digits[0])),
@@ -1084,19 +1084,19 @@ function App() {
 
     const handlePermissionsClick = async () => {
         if (!selectedFile) return;
-        
+
         try {
             setPermissionsLoading(true);
             const response = await axios.get(
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/permissions`,
                 { params: { path: `${currentPath}/${selectedFile.name}` } }
             );
-            
+
             const mode = response.data.mode.replace(/[^\d]/g, '').slice(-3);
             if (!mode || !/^[0-7]{3}$/.test(mode)) {
                 throw new Error('Invalid permissions format received');
             }
-            
+
             const newPermissions = parseNumericPermissions(mode);
             setPermissions(newPermissions);
             setPermissionsDialog(true);
@@ -1109,9 +1109,9 @@ function App() {
 
     const handlePermissionsSave = async () => {
         if (!selectedFile) return;
-        
+
         try {
-            setPermissionsLoading(true);  
+            setPermissionsLoading(true);
             await axios.put(
                 `${INTERNAL_API_URL}/api/containers/${selectedContainer.Id}/permissions`,
                 {
@@ -1119,13 +1119,13 @@ function App() {
                     mode: calculateNumericPermissions(permissions)
                 }
             );
-            
+
             setPermissionsDialog(false);
             showSuccessMessage('Permissions updated successfully');
             await fetchFiles(selectedContainer.Id, currentPath);
-            setPermissionsLoading(false);  
+            setPermissionsLoading(false);
         } catch (error) {
-            setPermissionsLoading(false);  
+            setPermissionsLoading(false);
             showErrorMessage('Error updating permissions: ' + error.message);
         }
     };
@@ -1167,7 +1167,7 @@ function App() {
                 setIsAuthenticated(true);
                 setShowAuthDialog(false);
                 setAuthError('');
-                
+
                 await fetchContainers();
             }
         } catch (error) {
@@ -1190,13 +1190,13 @@ function App() {
     const restorePreviousState = async () => {
         const savedContainer = localStorage.getItem('selectedContainer');
         const savedPath = localStorage.getItem('currentPath');
-        
+
         if (savedContainer) {
             try {
                 const parsedContainer = JSON.parse(savedContainer);
                 setSelectedContainer(parsedContainer);
                 setOpenDialog(true);
-                
+
                 if (savedPath) {
                     setCurrentPath(savedPath);
                     await fetchFiles(parsedContainer.Id, savedPath);
@@ -1214,7 +1214,7 @@ function App() {
         try {
             const response = await axios.get(`${INTERNAL_API_URL}/api/containers`);
             setContainers(response.data);
-            
+
             await restorePreviousState();
         } catch (error) {
             console.error('Error fetching containers:', error);
@@ -1308,7 +1308,7 @@ function App() {
 
                             if (elementRect.top < topOffset) {
                                 selectedElement.scrollIntoView(true);
-                                fileList.scrollTop -= (toolbarHeight + 40); 
+                                fileList.scrollTop -= (toolbarHeight + 40);
                             }
                             selectedElement.scrollIntoView({
                                 behavior: 'smooth',
@@ -1334,7 +1334,7 @@ function App() {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (permissionsDialog) return;
-            
+
             if (!openDialog || openEditor) return;
 
             if (e.key === 'Enter' && selectedFile) {
@@ -1371,7 +1371,7 @@ function App() {
 
             const response = await axios.get(
                 `${INTERNAL_API_URL}/api/containers/${container.Id}/files`,
-                { params: { path: '/' } }  
+                { params: { path: '/' } }
             );
 
             if (response.status === 200) {
@@ -1407,8 +1407,9 @@ function App() {
                 params: { path }
             });
             const filteredFiles = response.data.filter(file => {
-                return !file.name.startsWith('.') &&
-                    !file.name.includes('.DS_Store') &&
+                return file.name !== '.' &&
+                    file.name !== '..' &&
+                    file.name !== '.DS_Store' &&
                     file.name !== 'Thumbs.db' &&
                     file.name !== 'desktop.ini';
             });
@@ -1464,7 +1465,7 @@ function App() {
 
                 if (response.status === 200) {
                     setFileContent(response.data);
-                    setOriginalContent(response.data); 
+                    setOriginalContent(response.data);
                     setSelectedFile(file);
                     setOpenEditor(true);
                     window.history.pushState({ type: 'editor', path: currentPath }, '');
@@ -1707,8 +1708,9 @@ function App() {
 
             if (entries.length > 0) {
                 for (const entry of entries) {
-                    if (entry.name.startsWith('.') ||
-                        entry.name.includes('.DS_Store') ||
+                    if (entry.name === '.' ||
+                        entry.name === '..' ||
+                        entry.name === '.DS_Store' ||
                         entry.name === 'Thumbs.db' ||
                         entry.name === 'desktop.ini') {
                         continue;
@@ -1970,7 +1972,7 @@ function App() {
                         </Typography>
                     </div>
 
-                    {}
+                    { }
                     {uploadQueue.length > 0 && (
                         <>
                             <Typography variant="subtitle1" style={{ marginTop: '24px', color: '#e6edf3' }}>
@@ -2292,7 +2294,7 @@ function App() {
         setDragOverItem(null);
 
         if (!draggedItem || draggedItem.name === targetFolder.name) {
-            setDraggedItem(null);  
+            setDraggedItem(null);
             return;
         }
 
@@ -2313,7 +2315,7 @@ function App() {
             showErrorMessage('Error moving file: ' + (error.response?.data?.error || error.message));
         }
 
-        setDraggedItem(null);  
+        setDraggedItem(null);
     };
 
     const handleDragEnd = () => {
@@ -2381,24 +2383,24 @@ function App() {
         fullWidth
         onKeyDown={handlePermissionsKeyDown}
     >
-        <DialogTitle style={{ 
+        <DialogTitle style={{
             borderBottom: '1px solid #30363d',
             color: '#e6edf3'
         }}>
             File Permissions - {selectedFile?.name}
         </DialogTitle>
         <DialogContent style={{ paddingTop: '20px' }}>
-            {}
+            { }
         </DialogContent>
     </Dialog>
 
     return (
         <React.Fragment>
             {isLoading ? (
-                <Box 
-                    display="flex" 
-                    justifyContent="center" 
-                    alignItems="center" 
+                <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
                     minHeight="100vh"
                     className={classes.root}
                 >
@@ -2483,7 +2485,7 @@ function App() {
                         </Grow>
 
                         <Divider className={classes.divider} />
-                        
+
                         <Typography variant="subtitle1" className={classes.hostInfo}>
                             Host: {hostInfo}
                         </Typography>
@@ -2604,9 +2606,9 @@ function App() {
                                         {currentPath}
                                     </Typography>
                                 </div>
-                                {}
+                                { }
                                 <div className={classes.toolbarActions}>
-                                    {}
+                                    { }
                                     <div className={`${classes.searchContainer} ${searchExpanded ? 'expanded' : ''}`}>
                                         <IconButton
                                             size="small"
@@ -2639,7 +2641,7 @@ function App() {
                                         )}
                                     </div>
 
-                                    {}
+                                    { }
                                     <div style={{
                                         width: '1px',
                                         height: '20px',
@@ -2647,7 +2649,7 @@ function App() {
                                         margin: '0 4px'
                                     }} />
 
-                                    {}
+                                    { }
                                     <div style={{
                                         display: 'flex',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -2702,7 +2704,7 @@ function App() {
                                         </Tooltip>
                                     </div>
 
-                                    {}
+                                    { }
                                     <div style={{
                                         width: '1px',
                                         height: '20px',
@@ -2710,7 +2712,7 @@ function App() {
                                         margin: '0 4px'
                                     }} />
 
-                                    {}
+                                    { }
                                     <div style={{
                                         display: 'flex',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -2771,7 +2773,7 @@ function App() {
                                             </span>
                                         </Tooltip>
 
-                                        {}
+                                        { }
                                         <Tooltip title="Permissions" arrow>
                                             <span style={{ margin: '0 2px' }}>
                                                 <IconButton
@@ -2786,7 +2788,7 @@ function App() {
                                         </Tooltip>
                                     </div>
 
-                                    {}
+                                    { }
                                     <div style={{
                                         width: '1px',
                                         height: '20px',
@@ -2794,7 +2796,7 @@ function App() {
                                         margin: '0 4px'
                                     }} />
 
-                                    {}
+                                    { }
                                     <div style={{
                                         display: 'flex',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -2815,7 +2817,7 @@ function App() {
                                     </div>
                                 </div>
 
-                                {}
+                                { }
                                 <IconButton
                                     className={classes.mobileMenuButton}
                                     color="inherit"
@@ -2825,7 +2827,7 @@ function App() {
                                     <MenuIcon />
                                 </IconButton>
 
-                                {}
+                                { }
                                 <Menu
                                     anchorEl={mobileMenuAnchor}
                                     keepMounted
@@ -3269,7 +3271,7 @@ function App() {
                         </DialogActions>
                     </Dialog>
 
-                    {}
+                    { }
                     <Dialog
                         open={permissionsDialog}
                         onClose={() => setPermissionsDialog(false)}
@@ -3278,7 +3280,7 @@ function App() {
                         fullWidth
                         onKeyDown={handlePermissionsKeyDown}
                     >
-                        <DialogTitle style={{ 
+                        <DialogTitle style={{
                             borderBottom: '1px solid #30363d',
                             color: '#e6edf3'
                         }}>
@@ -3293,7 +3295,7 @@ function App() {
                                 <Grid container spacing={2}>
                                     {['owner', 'group', 'others'].map((entity) => (
                                         <Grid item xs={12} key={entity}>
-                                            <Typography variant="subtitle1" style={{ 
+                                            <Typography variant="subtitle1" style={{
                                                 textTransform: 'capitalize',
                                                 marginBottom: '8px'
                                             }}>
@@ -3308,9 +3310,9 @@ function App() {
                                                             onChange={(e) => {
                                                                 const newPermissions = {
                                                                     ...permissions,
-                                                                    [entity]: { 
-                                                                        ...permissions[entity], 
-                                                                        read: e.target.checked 
+                                                                    [entity]: {
+                                                                        ...permissions[entity],
+                                                                        read: e.target.checked
                                                                     }
                                                                 };
                                                                 setPermissions(newPermissions);
@@ -3331,9 +3333,9 @@ function App() {
                                                             onChange={(e) => {
                                                                 const newPermissions = {
                                                                     ...permissions,
-                                                                    [entity]: { 
-                                                                        ...permissions[entity], 
-                                                                        write: e.target.checked 
+                                                                    [entity]: {
+                                                                        ...permissions[entity],
+                                                                        write: e.target.checked
                                                                     }
                                                                 };
                                                                 setPermissions(newPermissions);
@@ -3354,9 +3356,9 @@ function App() {
                                                             onChange={(e) => {
                                                                 const newPermissions = {
                                                                     ...permissions,
-                                                                    [entity]: { 
-                                                                        ...permissions[entity], 
-                                                                        execute: e.target.checked 
+                                                                    [entity]: {
+                                                                        ...permissions[entity],
+                                                                        execute: e.target.checked
                                                                     }
                                                                 };
                                                                 setPermissions(newPermissions);
@@ -3386,7 +3388,7 @@ function App() {
                                                 }
                                             }}
                                             className={classes.newItemTextField}
-                                            inputProps={{ 
+                                            inputProps={{
                                                 maxLength: 3,
                                                 style: { color: '#e6edf3' },
                                                 type: 'text',

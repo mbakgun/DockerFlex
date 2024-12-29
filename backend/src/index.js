@@ -11,8 +11,8 @@ require('tar');
 require('os');
 
 const app = express();
-const docker = new Docker({socketPath: '/var/run/docker.sock'});
-const upload = multer({dest: 'uploads/'});
+const docker = new Docker({ socketPath: '/var/run/docker.sock' });
+const upload = multer({ dest: 'uploads/' });
 
 app.use(cors({
     origin: '*',
@@ -26,7 +26,7 @@ app.use(express.json());
 
 const authMiddleware = (req, res, next) => {
     const masterPassword = process.env.MASTER_PASSWORD;
-    
+
     if (!masterPassword) {
         return next();
     }
@@ -103,10 +103,10 @@ const execCommand = async (container, command, options = {}) => {
 
 app.get('/api/containers', async (req, res) => {
     try {
-        const containers = await docker.listContainers({all: true});
+        const containers = await docker.listContainers({ all: true });
         res.json(containers);
     } catch (error) {
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -153,7 +153,7 @@ app.get('/api/containers/:id/files', async (req, res) => {
 
         stream.on('end', () => {
             if (errorOutput) {
-                return res.status(500).json({error: errorOutput});
+                return res.status(500).json({ error: errorOutput });
             }
 
             try {
@@ -178,6 +178,10 @@ app.get('/api/containers/:id/files', async (req, res) => {
                                 return null;
                             }
 
+                            if (path === '/' && (name === '.' || name === '..')) {
+                                return null;
+                            }
+
                             return {
                                 permissions,
                                 size,
@@ -189,7 +193,7 @@ app.get('/api/containers/:id/files', async (req, res) => {
                             return null;
                         }
                     })
-                    .filter(file => file && !['..', '.'].includes(file.name));
+                    .filter(file => file);
 
                 res.json(files);
             } catch (err) {
@@ -212,7 +216,7 @@ app.get('/api/containers/:id/files', async (req, res) => {
 app.get('/api/containers/:id/files/content', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
-        const {path} = req.query;
+        const { path } = req.query;
         const decodedPath = decodeURIComponent(path);
 
         const exec = await container.exec({
@@ -245,13 +249,13 @@ app.get('/api/containers/:id/files/content', async (req, res) => {
         stream.on('error', (error) => {
             console.error('Stream error:', error);
             if (!res.headersSent) {
-                res.status(500).json({error: error.message});
+                res.status(500).json({ error: error.message });
             }
         });
 
     } catch (error) {
         console.error('Error reading file:', error);
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -340,7 +344,7 @@ app.put('/api/containers/:id/files', async (req, res) => {
 
             const stream = await exec.start();
             let size = '';
-            
+
             await new Promise((resolve, reject) => {
                 stream.on('data', chunk => {
                     size += chunk.toString();
@@ -357,10 +361,10 @@ app.put('/api/containers/:id/files', async (req, res) => {
                 }
             }
 
-            res.json({ 
+            res.json({
                 message: 'File saved successfully',
                 size: parseInt(size.trim()),
-                restarted: restart 
+                restarted: restart
             });
 
         } finally {
@@ -372,9 +376,9 @@ app.put('/api/containers/:id/files', async (req, res) => {
         }
     } catch (error) {
         console.error('Error saving file:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to save file',
-            details: error.message 
+            details: error.message
         });
     }
 });
@@ -397,7 +401,7 @@ const executeCommandWithPrivileges = async (container, command, options = {}) =>
 
     const stream = await privilegedExec.start();
     let output = '';
-    
+
     await new Promise((resolve, reject) => {
         stream.on('data', chunk => output += chunk.toString());
         stream.on('end', () => {
@@ -409,14 +413,14 @@ const executeCommandWithPrivileges = async (container, command, options = {}) =>
         });
         stream.on('error', reject);
     });
-    
+
     return output;
 };
 
 app.put('/api/containers/:id/files/rename', async (req, res) => {
     try {
         const container = docker.getContainer(id);
-        const {oldPath, newPath} = req.body;
+        const { oldPath, newPath } = req.body;
 
         const parentDir = newPath.substring(0, newPath.lastIndexOf('/'));
         const verifyCmd = `
@@ -437,7 +441,7 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
 
         const verifyStream = await verifyExec.start();
         let verifyOutput = '';
-        
+
         await new Promise((resolve, reject) => {
             verifyStream.on('data', chunk => {
                 const buffer = Buffer.from(chunk);
@@ -460,7 +464,7 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
 
         const moveStream = await moveExec.start();
         let moveOutput = '';
-        
+
         await new Promise((resolve, reject) => {
             moveStream.on('data', chunk => {
                 const buffer = Buffer.from(chunk);
@@ -491,7 +495,7 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
 app.post('/api/containers/:id/create-folder', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
-        const {path} = req.body;
+        const { path } = req.body;
 
         if (!path) {
             return res.status(400).json({
@@ -510,7 +514,7 @@ app.post('/api/containers/:id/create-folder', async (req, res) => {
         `);
 
         const verifyOutput = await executeCommandWithPrivileges(container, `test -d "${path}" && echo "SUCCESS"`);
-        
+
         if (!verifyOutput.includes('SUCCESS')) {
             throw new Error('Directory creation could not be verified');
         }
@@ -530,8 +534,8 @@ app.post('/api/containers/:id/create-folder', async (req, res) => {
 
 app.delete('/api/containers/:id/files', async (req, res) => {
     try {
-        const {id} = req.params;
-        const {path, isDirectory} = req.body;
+        const { id } = req.params;
+        const { path, isDirectory } = req.body;
         const container = docker.getContainer(id);
 
         await executeCommandWithPrivileges(container, `
@@ -562,12 +566,12 @@ app.delete('/api/containers/:id/files', async (req, res) => {
 
 app.post('/api/containers/:id/files', upload.single('file'), async (req, res) => {
     try {
-        const {id} = req.params;
-        const {path: uploadPath} = req.body;
+        const { id } = req.params;
+        const { path: uploadPath } = req.body;
         const container = docker.getContainer(id);
 
         if (!req.file) {
-            return res.status(400).json({error: 'No file uploaded'});
+            return res.status(400).json({ error: 'No file uploaded' });
         }
 
         try {
@@ -579,7 +583,7 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
             });
         }
 
-        const {path: filePath, originalname} = req.file;
+        const { path: filePath, originalname } = req.file;
         const targetPath = `${uploadPath || '/'}${uploadPath?.endsWith('/') ? '' : '/'}${originalname}`;
 
         try {
@@ -618,13 +622,13 @@ app.post('/api/containers/:id/files', upload.single('file'), async (req, res) =>
 
 app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res) => {
     try {
-        const {id} = req.params;
-        const {basePath} = req.body;
+        const { id } = req.params;
+        const { basePath } = req.body;
         const filePaths = req.body.filePaths || [];
         const container = docker.getContainer(id);
 
         if (!req.files || req.files.length === 0) {
-            return res.status(400).json({error: 'No files uploaded'});
+            return res.status(400).json({ error: 'No files uploaded' });
         }
 
         const allDirs = new Set();
@@ -740,14 +744,14 @@ app.post('/api/containers/:id/folders', upload.array('files[]'), async (req, res
         });
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.put('/api/containers/:id/files/rename', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
-        const {oldPath, newPath} = req.body;
+        const { oldPath, newPath } = req.body;
 
         const exec = await container.exec({
             Cmd: ['mv', oldPath, newPath],
@@ -764,13 +768,13 @@ app.put('/api/containers/:id/files/rename', async (req, res) => {
 
         stream.on('end', () => {
             if (error) {
-                res.status(500).json({error});
+                res.status(500).json({ error });
             } else {
-                res.json({message: 'File renamed successfully'});
+                res.json({ message: 'File renamed successfully' });
             }
         });
     } catch (error) {
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -778,20 +782,20 @@ app.post('/api/containers/:id/start', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
         await container.start();
-        res.json({message: 'Container started successfully'});
+        res.json({ message: 'Container started successfully' });
     } catch (error) {
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.get('/api/containers/:id/folders/download', async (req, res) => {
     try {
         const container = docker.getContainer(req.params.id);
-        const {path} = req.query;
+        const { path } = req.query;
         const folderName = path.split('/').pop();
 
         const archive = archiver('zip', {
-            zlib: {level: 9}
+            zlib: { level: 9 }
         });
 
         res.attachment(`${folderName}.zip`);
@@ -867,7 +871,7 @@ app.get('/api/containers/:id/folders/download', async (req, res) => {
 
     } catch (error) {
         console.error('Error downloading folder:', error);
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -992,10 +996,10 @@ app.post('/api/containers/:id/upload', upload.array('files[]'), async (req, res)
             }
         }
 
-        res.json({results});
+        res.json({ results });
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
     } finally {
         for (const file of req.files) {
             try {
@@ -1026,9 +1030,9 @@ app.get('/api/hostname', (req, res) => {
             }
         }
 
-        res.json({hostname});
+        res.json({ hostname });
     } catch (error) {
-        res.status(500).json({error: 'Could not get hostname'});
+        res.status(500).json({ error: 'Could not get hostname' });
     }
 });
 
@@ -1036,13 +1040,13 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4200;
 const server = app.listen(PORT, () => {
-    
+
 });
 
 server.on('error', (err) => {
     console.error('Server error:', err);
     if (err.code === 'EADDRINUSE') {
-        
+
         setTimeout(() => {
             server.close();
             server.listen(PORT);
@@ -1051,16 +1055,16 @@ server.on('error', (err) => {
 });
 
 process.on('SIGTERM', () => {
-    
+
     server.close(() => {
-        
+
         process.exit(0);
     });
 });
 
 app.get('/api/containers/:id/download', async (req, res) => {
-    const {id} = req.params;
-    const {path, isDirectory} = req.query;
+    const { id } = req.params;
+    const { path, isDirectory } = req.query;
 
     try {
         const container = docker.getContainer(id);
@@ -1072,7 +1076,7 @@ app.get('/api/containers/:id/download', async (req, res) => {
 
         archive.pipe(res);
 
-        const tarStream = await container.getArchive({path});
+        const tarStream = await container.getArchive({ path });
 
         const extract = require('tar-stream').extract();
 
@@ -1114,7 +1118,7 @@ app.get('/api/containers/:id/download', async (req, res) => {
     } catch (error) {
         console.error('Download error:', error);
         if (!res.headersSent) {
-            res.status(500).json({error: error.message});
+            res.status(500).json({ error: error.message });
         }
     }
 });
@@ -1165,12 +1169,12 @@ app.post('/api/containers/:id/copy', async (req, res) => {
                 exit 1
             fi
         `);
-        
+
         if (!verifyOutput.includes('SUCCESS')) {
             throw new Error(`Verification failed: ${verifyOutput}`);
         }
 
-        res.json({ 
+        res.json({
             message: 'Item copied successfully',
             details: verifyOutput
         });
@@ -1189,7 +1193,7 @@ app.post('/api/containers/:id/move', async (req, res) => {
 
     try {
         const container = docker.getContainer(id);
-        
+
         const verifyCmd = `
             target_dir="$(dirname "${targetPath}")"
             if [ -d "$target_dir" ]; then
@@ -1201,15 +1205,15 @@ app.post('/api/containers/:id/move', async (req, res) => {
                 exit 1
             fi
         `;
-        
+
         const verifyExec = await execCommand(container, verifyCmd, {
             Privileged: true,
             User: 'root'
         });
-        
+
         const verifyStream = await verifyExec.start();
         let verifyOutput = '';
-        
+
         await new Promise((resolve, reject) => {
             verifyStream.on('data', chunk => {
                 const buffer = Buffer.from(chunk);
@@ -1218,21 +1222,21 @@ app.post('/api/containers/:id/move', async (req, res) => {
             verifyStream.on('end', resolve);
             verifyStream.on('error', reject);
         });
-        
+
         if (!verifyOutput.includes('SUCCESS')) {
             throw new Error(`Verification failed: ${verifyOutput}`);
         }
 
         const moveCmd = `mv "${sourcePath}" "${targetPath}" 2>/dev/null && chmod -R 777 "${targetPath}" 2>/dev/null && echo "SUCCESS: Move completed"`;
-        
+
         const moveExec = await execCommand(container, moveCmd, {
             Privileged: true,
             User: 'root'
         });
-        
+
         const moveStream = await moveExec.start();
         let moveOutput = '';
-        
+
         await new Promise((resolve, reject) => {
             moveStream.on('data', chunk => {
                 const buffer = Buffer.from(chunk);
@@ -1247,15 +1251,15 @@ app.post('/api/containers/:id/move', async (req, res) => {
         }
 
         const verifyFinalCmd = `test -e "${targetPath}" && echo "SUCCESS: Final verification passed"`;
-        
+
         const verifyFinalExec = await execCommand(container, verifyFinalCmd, {
             Privileged: true,
             User: 'root'
         });
-        
+
         const verifyFinalStream = await verifyFinalExec.start();
         let verifyFinalOutput = '';
-        
+
         await new Promise((resolve, reject) => {
             verifyFinalStream.on('data', chunk => {
                 const buffer = Buffer.from(chunk);
@@ -1277,7 +1281,7 @@ app.post('/api/containers/:id/move', async (req, res) => {
             details: error.message || 'Unable to move. The location might be read-only or system protected.'
         });
     }
-}); 
+});
 
 app.post('/api/containers/:id/create-file', async (req, res) => {
     try {
@@ -1375,10 +1379,10 @@ app.put('/api/containers/:id/permissions', async (req, res) => {
         }
 
         await executeCommandWithPrivileges(container, `chmod ${mode} "${path.trim()}"`);
-        
+
         const verifyOutput = await executeCommandWithPrivileges(container, `stat -c '%a' "${path.trim()}"`);
         const actualMode = verifyOutput.trim().replace(/[^\d]/g, '').slice(-3);
-        
+
         if (!actualMode || !/^[0-7]{3}$/.test(actualMode)) {
             throw new Error('Failed to read permissions after change');
         }
