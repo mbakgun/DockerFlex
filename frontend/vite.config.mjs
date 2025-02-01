@@ -10,6 +10,7 @@ export default defineConfig({
     watch: {
       usePolling: true
     },
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: process.env.VITE_BACKEND_URL || 'http://backend:4200',
