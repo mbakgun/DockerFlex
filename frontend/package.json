@@ -22,7 +22,7 @@
     "@codemirror/lang-markdown": "^6.3.2",
     "@codemirror/lang-css": "^6.2.0",
     "@codemirror/lang-html": "^6.4.6",
-    "@codemirror/legacy-modes": "^6.5.0",
+    "@codemirror/legacy-modes": "^6.5.1",
     "@codemirror/lang-go": "^6.0.0",
     "@codemirror/lint": "^6.8.5",
     "jsonlint-mod": "^1.7.6",
