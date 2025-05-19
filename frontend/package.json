@@ -11,7 +11,7 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "@uiw/react-codemirror": "^4.23.12",
-    "@codemirror/lang-javascript": "^6.2.3",
+    "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/lang-yaml": "^6.1.2",
