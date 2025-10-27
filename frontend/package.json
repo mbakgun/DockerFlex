@@ -24,7 +24,7 @@
     "@codemirror/lang-html": "^6.4.11",
     "@codemirror/legacy-modes": "^6.5.2",
     "@codemirror/lang-go": "^6.0.0",
-    "@codemirror/lint": "^6.9.0",
+    "@codemirror/lint": "^6.9.1",
     "jsonlint-mod": "^1.7.6",
     "yaml-lint": "^1.7.0"
   },
