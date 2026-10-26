@@ -10,7 +10,7 @@
     "express": "^5.3.0",
     "cors": "^2.8.6",
     "dockerode": "^5.0.1",
-    "multer": "^2.4.0",
+    "multer": "^2.5.0",
     "archiver": "^8.0.0",
     "tar-stream": "^3.2.2",
     "tar": "^7.5.22"
